@@ -150,14 +150,12 @@ void kBFS(graph *g, int *distField) {
     S[i] = (std::rand()/(float)RAND_MAX) * g->num_nodes;
 
   VertexSet* frontier = newVertexSet(SPARSE, K, g->num_nodes);
-  frontier->size = K; // why isn't this already filled in for you?
   for (int i = 0; i < K; i++) {
     addVertex(frontier, S[i]);
   }
 
   // iterate over values 1 thru k to do initialization
   VertexSet* ks = newVertexSet(SPARSE, K, g->num_nodes);
-  ks->size = K;
   for (int i = 0; i < K; i++) 
     addVertex(ks, i);
 
