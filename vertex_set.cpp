@@ -17,22 +17,39 @@
 VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 {
   // TODO: Implement
-  return NULL;
+  VertexSet* vertexSet = (VertexSet*)malloc(sizeof(VertexSet));
+  vertexSet->type = type;
+  vertexSet->size = 0;
+  vertexSet->numNodes = numNodes;
+  vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
+  // initialize to -1's?
+  return vertexSet;
 }
 
 void freeVertexSet(VertexSet *set)
 {
   // TODO: Implement
+  free(set->vertices);
+  free(set);
 }
 
 void addVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
+  int index = set->size;
+  set->vertices[index + 1] = v;
 }
 
 void removeVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
+  int index = set->size;
+  // what do
+  for (int i = 0; i < index; i++) {
+    if (set->vertices[i] == v) {
+      set->vertices[i] = -1;
+    }  
+  }
 }
 
 /**

@@ -36,7 +36,44 @@ template <class F>
 VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
 {
   // TODO: Implement
-  return NULL;
+  
+  bool* dups = NULL;
+  if (removeDuplicates) { 
+    *dups = (bool*)malloc(sizeof(bool) * u->numNodes);
+  }
+
+  int count = 0;
+  for (int i = 0; i < u->size; i++) {
+    const Vertex* start = outgoing_begin(g, i);
+    const Vertex* end = outgoing_end(g, i);
+    
+    for (const Vertex* v = start; v != end; v++) {
+      if (f.cond(*v) && f.update(u->vertices[i], *v)) {
+        count++;
+      } 
+    }
+  }
+  
+  VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
+  for (int i = 0; i < u->size; i++) {
+    const Vertex* start = outgoing_begin(g, i);
+    const Vertex* end = outgoing_end(g, i);
+    
+    for (const Vertex* v = start; v != end; v++) {
+      if (f.cond(*v) && f.update(u->vertices[i], *v)) {
+        if (removeDuplicates) {
+          if (!dups[*v]) {
+            addVertex(vertexSet, *v);
+            dups[*v] = true;
+          }
+        } else {
+          addVertex(vertexSet, *v);
+        } 
+      } 
+    }
+  }
+  
+  return vertexSet;
 }
 
 
@@ -62,7 +99,30 @@ template <class F>
 VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
-  return NULL;
+  //
+  if (!returnSet) {
+    return NULL;
+  }
+  
+  int size = u->size;
+  bool* results = (bool*)malloc(sizeof(bool) * size);
+  int count = 0;
+  
+  for (int i = 0; i < size; i++) {
+    results[i] = f(u->vertices[i]);
+    count++;
+  }
+
+  VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
+  
+  for (int i = 0; i < size; i++) {
+    if (results[i]) {
+      addVertex(vertexSet, u->vertices[i]);
+    }
+  }
+
+  return vertexSet;
+  
 }
 
 #endif /* __PARAGRAPH_H__ */
