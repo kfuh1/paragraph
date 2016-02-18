@@ -23,6 +23,7 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   vertexSet->numNodes = numNodes;
   vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
   // initialize to -1's?
+  // HALP
   return vertexSet;
 }
 
