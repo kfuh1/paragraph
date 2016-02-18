@@ -21,9 +21,14 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   vertexSet->type = type;
   vertexSet->size = 0;
   vertexSet->numNodes = numNodes;
+  vertexSet->capacity = capacity;
   vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
-  // initialize to -1's?
-  // HALP
+  
+  // initializing
+  for (int i = 0; i < capacity; i++) {
+    vertexSet->vertices[i] = -1;
+  }
+  
   return vertexSet;
 }
 
@@ -37,19 +42,29 @@ void freeVertexSet(VertexSet *set)
 void addVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
-  int index = set->size;
-  set->vertices[index + 1] = v;
+  
+  int size = set->size;
+  if (size < set->capacity) {
+    set->vertices[size] = v;
+    size += 1;
+  }
 }
 
 void removeVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
-  int index = set->size;
-  // what do
-  for (int i = 0; i < index; i++) {
+  int size = set->size;
+  int remVtx = 0;
+  for (int i = 0; i < size; i++) {
     if (set->vertices[i] == v) {
+      remVtx = i;
       set->vertices[i] = -1;
     }  
+  }
+
+  // shifting
+  for (int j = remVtx; j < size - 1; j++) {
+    set->vertices[j] = set->vertices[j+1];
   }
 }
 

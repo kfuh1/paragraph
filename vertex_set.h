@@ -10,6 +10,7 @@ typedef enum {
 typedef struct {
   int size;     // Number of nodes in the set
   int numNodes; // Number of nodes in the graph
+  int capacity; // Length of vertices array
   VertexSetType type; 
   Vertex* vertices;
 } VertexSet;

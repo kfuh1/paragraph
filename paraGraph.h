@@ -101,6 +101,9 @@ VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
   // TODO: Implement
   //
   if (!returnSet) {
+    for (int j = 0; j < u->size; j++) {
+      u->vertices[j] = f(u->vertices[j]);
+    }
     return NULL;
   }
   
