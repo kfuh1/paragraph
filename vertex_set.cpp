@@ -56,21 +56,30 @@ void addVertex(VertexSet *set, Vertex v)
   int size = set->size;
   
   if (size >= set->capacity) {
-    return ;
+    return;
   }
 
   int firstOpenIdx = 0;
-  bool found = false;
+  //indicates whether open index has been found
+  bool found = false; 
 
-  for (int i = 0; i < set->capacity; i++) {
-    if (!found && set->vertices[i] == -1) {
-      firstOpenIdx = i;
+  int currCount = 0;
+  int idx = 0;
+  while(currCount < size){
+    //because we need to loop through whole array to check
+    //for duplicates, we only mark the first open index
+    if (!found && set->vertices[idx] == -1) {
+      firstOpenIdx = idx;
       found = true;
     }
-    // Ensuring no duplicates
-    if (set->vertices[i] == v) {
-      return ;
+    //exit if there's a duplicate
+    if (set->vertices[idx] == v) {
+      return;
     }
+    if(set->vertices[idx] != -1){
+      currCount += 1;
+    }
+    idx += 1;
   }
 
   set->vertices[firstOpenIdx] = v;
@@ -87,14 +96,12 @@ void removeVertex(VertexSet *set, Vertex v)
 
   std::cout << "begin remove";
   
-  int size = set->size;
-  //int remVtx = 0;
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < set->capacity; i++) {
+    //assumes that there are no duplicates in our set
     if (set->vertices[i] == v) {
-      //remVtx = i;
       set->vertices[i] = -1;
       set->size -= 1;
-      break;
+      return;
     }  
   }
 

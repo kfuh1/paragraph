@@ -43,10 +43,10 @@ VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
   
   std::cout << "begin edgeMap";
   
-  bool* dups = NULL;
-  if (removeDuplicates) { 
-    *dups = (bool*)malloc(sizeof(bool) * u->numNodes);
-  }
+  //bool* dups = NULL;
+  //if (removeDuplicates) { 
+    bool* dups = (bool*)malloc(sizeof(bool) * u->numNodes);
+  //}
 
   int count = 0;
   for (int i = 0; i < u->size; i++) {
