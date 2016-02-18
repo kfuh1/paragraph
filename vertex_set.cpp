@@ -44,28 +44,44 @@ void addVertex(VertexSet *set, Vertex v)
   // TODO: Implement
   
   int size = set->size;
-  if (size < set->capacity) {
-    set->vertices[size] = v;
-    size += 1;
+  
+  if (size >= set->capacity) {
+    return ;
   }
+
+  int firstOpenIdx = 0;
+
+  for (int i = 0; i < size + 1; i++) {
+    if (set->vertices[i] == -1) {
+      firstOpenIdx = i;
+    }
+    // Ensuring no duplicates
+    if (set->vertices[i] == v) {
+      return ;
+    }
+  }
+
+  set->vertices[firstOpenIdx] = v;
+  set->size += 1;
 }
 
 void removeVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
   int size = set->size;
-  int remVtx = 0;
+  //int remVtx = 0;
   for (int i = 0; i < size; i++) {
     if (set->vertices[i] == v) {
-      remVtx = i;
+      //remVtx = i;
       set->vertices[i] = -1;
     }  
   }
+  set->size -= 1;
 
   // shifting
-  for (int j = remVtx; j < size - 1; j++) {
+  /**for (int j = remVtx; j < size - 1; j++) {
     set->vertices[j] = set->vertices[j+1];
-  }
+  }**/
 }
 
 /**
