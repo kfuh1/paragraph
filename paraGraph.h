@@ -10,6 +10,9 @@
 
 #include "mic.h"
 
+#include <stdio.h>
+#include <iostream>
+
 /*
  * edgeMap --
  * 
@@ -36,6 +39,9 @@ template <class F>
 VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
 {
   // TODO: Implement
+  //
+  
+  std::cout << "begin edgeMap";
   
   bool* dups = NULL;
   if (removeDuplicates) { 
@@ -72,6 +78,8 @@ VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
       } 
     }
   }
+
+  std::cout << "end edgeMap";
   
   return vertexSet;
 }
@@ -100,29 +108,40 @@ VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
   //
+  
+  std::cout << "begin vertex map";
+
+  int capacity = u->capacity;
   if (!returnSet) {
-    for (int j = 0; j < u->size; j++) {
-      u->vertices[j] = f(u->vertices[j]);
+    for (int j = 0; j < capacity; j++) {
+      if (u->vertices[j] != -1) {
+        f(u->vertices[j]);
+      }
     }
     return NULL;
   }
   
-  int size = u->size;
-  bool* results = (bool*)malloc(sizeof(bool) * size);
+  bool* results = (bool*)malloc(sizeof(bool) * capacity);
   int count = 0;
   
-  for (int i = 0; i < size; i++) {
-    results[i] = f(u->vertices[i]);
-    count++;
+  for (int i = 0; i < capacity; i++) {
+    if (u->vertices[i] != -1) {
+      results[i] = f(u->vertices[i]);
+      count++;
+    } else {
+      results[i] = false;
+    }
   }
 
   VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
   
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < capacity; i++) {
     if (results[i]) {
       addVertex(vertexSet, u->vertices[i]);
     }
   }
+
+  std::cout << "end vertexMap";
 
   return vertexSet;
   

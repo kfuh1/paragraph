@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include "mic.h"
 
+#include <iostream>
+
 /**
  * Creates an empty VertexSet with the given type and capacity.
  * numNodes is the total number of nodes in the graph.
@@ -17,6 +19,10 @@
 VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 {
   // TODO: Implement
+  //
+
+  std::cout << "begin new";
+
   VertexSet* vertexSet = (VertexSet*)malloc(sizeof(VertexSet));
   vertexSet->type = type;
   vertexSet->size = 0;
@@ -28,6 +34,8 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   for (int i = 0; i < capacity; i++) {
     vertexSet->vertices[i] = -1;
   }
+
+  std::cout << "end new";
   
   return vertexSet;
 }
@@ -43,6 +51,8 @@ void addVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
   
+  std::cout << "begin add";
+  
   int size = set->size;
   
   if (size >= set->capacity) {
@@ -50,10 +60,12 @@ void addVertex(VertexSet *set, Vertex v)
   }
 
   int firstOpenIdx = 0;
+  bool found = false;
 
-  for (int i = 0; i < size + 1; i++) {
-    if (set->vertices[i] == -1) {
+  for (int i = 0; i < set->capacity; i++) {
+    if (!found && set->vertices[i] == -1) {
       firstOpenIdx = i;
+      found = true;
     }
     // Ensuring no duplicates
     if (set->vertices[i] == v) {
@@ -63,25 +75,30 @@ void addVertex(VertexSet *set, Vertex v)
 
   set->vertices[firstOpenIdx] = v;
   set->size += 1;
+
+  std::cout << "end add";
+
 }
 
 void removeVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
+  
+
+  std::cout << "begin remove";
+  
   int size = set->size;
   //int remVtx = 0;
   for (int i = 0; i < size; i++) {
     if (set->vertices[i] == v) {
       //remVtx = i;
       set->vertices[i] = -1;
+      set->size -= 1;
+      break;
     }  
   }
-  set->size -= 1;
 
-  // shifting
-  /**for (int j = remVtx; j < size - 1; j++) {
-    set->vertices[j] = set->vertices[j+1];
-  }**/
+  std::cout << "end remove";
 }
 
 /**
