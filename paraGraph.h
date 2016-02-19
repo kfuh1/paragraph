@@ -41,45 +41,37 @@ VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
   // TODO: Implement
   //
   
-  std::cout << "begin edgeMap";
+  //std::cout << "begin edgeMap";
   
-  //bool* dups = NULL;
-  //if (removeDuplicates) { 
-    bool* dups = (bool*)malloc(sizeof(bool) * u->numNodes);
-  //}
-
   int count = 0;
-  for (int i = 0; i < u->size; i++) {
-    const Vertex* start = outgoing_begin(g, i);
-    const Vertex* end = outgoing_end(g, i);
-    
+  bool* results = (bool*)malloc(sizeof(bool) * u->numNodes);
+  for(int i = 0; i < u->numNodes; i++){
+    results[i] = false;
+  }
+  //for each vertex in the given set loop through all the out-neighbors
+  //and apply f.cond and f.update
+  for (int i = 0; i < u->capacity; i++) {
+    Vertex srcVertex = u->vertices[i];
+    if(srcVertex == -1){
+      continue;
+    }
+    const Vertex* start = outgoing_begin(g, srcVertex);
+    const Vertex* end = outgoing_end(g, srcVertex);
     for (const Vertex* v = start; v != end; v++) {
-      if (f.cond(*v) && f.update(u->vertices[i], *v)) {
+      if (f.cond(*v) && f.update(srcVertex, *v)) {
+        results[*v] = true;
         count++;
-      } 
+      }
     }
   }
-  
   VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
-  for (int i = 0; i < u->size; i++) {
-    const Vertex* start = outgoing_begin(g, i);
-    const Vertex* end = outgoing_end(g, i);
-    
-    for (const Vertex* v = start; v != end; v++) {
-      if (f.cond(*v) && f.update(u->vertices[i], *v)) {
-        if (removeDuplicates) {
-          if (!dups[*v]) {
-            addVertex(vertexSet, *v);
-            dups[*v] = true;
-          }
-        } else {
-          addVertex(vertexSet, *v);
-        } 
-      } 
-    }
+  for(int i = 0; i < u->numNodes; i++){
+      if(results[i]){
+          addVertex(vertexSet, i);
+      }
   }
 
-  std::cout << "end edgeMap";
+  //std::cout << "end edgeMap";
   
   return vertexSet;
 }
@@ -109,8 +101,7 @@ VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
   // TODO: Implement
   //
   
-  std::cout << "begin vertex map";
-
+  //std::cout << "begin vertex map";
   int capacity = u->capacity;
   if (!returnSet) {
     for (int j = 0; j < capacity; j++) {
@@ -135,13 +126,15 @@ VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 
   VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
   
-  for (int i = 0; i < capacity; i++) {
+  //print the vertices in the set - debug
+  /*for (int i = 0; i < capacity; i++) {
     if (results[i]) {
+      printf("vertex %d\n", u->vertices[i]);
       addVertex(vertexSet, u->vertices[i]);
     }
   }
-
-  std::cout << "end vertexMap";
+*/
+  //std::cout << "end vertexMap";
 
   return vertexSet;
   

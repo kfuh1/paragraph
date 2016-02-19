@@ -21,7 +21,7 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   // TODO: Implement
   //
 
-  std::cout << "begin new";
+  //std::cout << "begin new" << std::endl;
 
   VertexSet* vertexSet = (VertexSet*)malloc(sizeof(VertexSet));
   vertexSet->type = type;
@@ -35,7 +35,7 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
     vertexSet->vertices[i] = -1;
   }
 
-  std::cout << "end new";
+  //std::cout << "end new";
   
   return vertexSet;
 }
@@ -49,63 +49,49 @@ void freeVertexSet(VertexSet *set)
 
 void addVertex(VertexSet *set, Vertex v)
 {
+  //printf("add vertex %d\n", (int) v);
   // TODO: Implement
   
-  std::cout << "begin add";
-  
   int size = set->size;
-  
-  if (size >= set->capacity) {
+  int capacity = set->capacity;
+  if(size >= capacity){
     return;
   }
-
-  int firstOpenIdx = 0;
-  //indicates whether open index has been found
-  bool found = false; 
-
-  int currCount = 0;
-  int idx = 0;
-  while(currCount < size){
-    //because we need to loop through whole array to check
-    //for duplicates, we only mark the first open index
-    if (!found && set->vertices[idx] == -1) {
-      firstOpenIdx = idx;
-      found = true;
-    }
-    //exit if there's a duplicate
-    if (set->vertices[idx] == v) {
+  for(int i = 0; i < size; i++){
+    //vertex already in set
+    if(set->vertices[i] == v){
       return;
     }
-    if(set->vertices[idx] != -1){
-      currCount += 1;
-    }
-    idx += 1;
   }
-
-  set->vertices[firstOpenIdx] = v;
-  set->size += 1;
-
-  std::cout << "end add";
+  set->vertices[size] = v;
+  set->size = size + 1;
 
 }
 
 void removeVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
-  
 
-  std::cout << "begin remove";
-  
-  for (int i = 0; i < set->capacity; i++) {
-    //assumes that there are no duplicates in our set
-    if (set->vertices[i] == v) {
-      set->vertices[i] = -1;
-      set->size -= 1;
-      return;
-    }  
+  int removeIdx;
+  bool found = false;
+  int size = set->size;
+  for(int i = 0; i < size; i++){
+    if(set->vertices[i] == v){
+      removeIdx = i;
+      found = true;
+      break;
+    }
+  } 
+  //v not in the set - nothing to remove
+  if(!found){
+    return;
   }
-
-  std::cout << "end remove";
+  //shift everything down
+  for(int i = removeIdx; i < size - 1; i++){
+    set->vertices[i] = set->vertices[i+1];
+  }
+  set->size = size - 1;
+  
 }
 
 /**
