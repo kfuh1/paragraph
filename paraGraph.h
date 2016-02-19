@@ -41,8 +41,6 @@ VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
   // TODO: Implement
   //
   
-  //std::cout << "begin edgeMap";
-  
   int count = 0;
   bool* results = (bool*)malloc(sizeof(bool) * u->numNodes);
   for(int i = 0; i < u->numNodes; i++){
@@ -100,40 +98,38 @@ VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
   //
-  
-  //std::cout << "begin vertex map";
-  int capacity = u->capacity;
+  int size = u->size;
   if (!returnSet) {
-    for (int j = 0; j < capacity; j++) {
-      if (u->vertices[j] != -1) {
+    for (int j = 0; j < size; j++) {
+      //if (u->vertices[j] != -1) {
         f(u->vertices[j]);
-      }
+      //}
     }
     return NULL;
   }
   
-  bool* results = (bool*)malloc(sizeof(bool) * capacity);
-  int count = 0;
+  bool* results = (bool*)malloc(sizeof(bool) * size);
+  //int count = 0;
   
-  for (int i = 0; i < capacity; i++) {
-    if (u->vertices[i] != -1) {
+  for (int i = 0; i < size; i++) {
+    //if (u->vertices[i] != -1) {
       results[i] = f(u->vertices[i]);
-      count++;
+    /*  count++;
     } else {
       results[i] = false;
-    }
+    }*/
   }
 
-  VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
+  VertexSet* vertexSet = newVertexSet(u->type, size, u->numNodes);
   
   //print the vertices in the set - debug
-  /*for (int i = 0; i < capacity; i++) {
+  for (int i = 0; i < size; i++) {
     if (results[i]) {
-      printf("vertex %d\n", u->vertices[i]);
+      //printf("vertex %d\n", u->vertices[i]);
       addVertex(vertexSet, u->vertices[i]);
     }
   }
-*/
+
   //std::cout << "end vertexMap";
 
   return vertexSet;

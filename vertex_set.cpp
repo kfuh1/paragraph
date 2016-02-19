@@ -86,10 +86,11 @@ void removeVertex(VertexSet *set, Vertex v)
   if(!found){
     return;
   }
-  //shift everything down
-  for(int i = removeIdx; i < size - 1; i++){
-    set->vertices[i] = set->vertices[i+1];
-  }
+  
+  //move last vertex to empty spot so don't need to shift
+  set->vertices[removeIdx] = set->vertices[size];
+  //set the last element back to -1 to indicate removal
+  set->vertices[size-1] = -1; 
   set->size = size - 1;
   
 }
