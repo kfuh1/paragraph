@@ -54,6 +54,7 @@ void addVertex(VertexSet *set, Vertex v)
   //printf("add vertex %d\n", (int) v);
   // TODO: Implement
   
+  /** old implementation
   int size = set->size;
   int capacity = set->capacity;
   if(size >= capacity){
@@ -67,8 +68,16 @@ void addVertex(VertexSet *set, Vertex v)
     }
   }
   set->vertices[size] = v;
-  set->size = size + 1;
+  set->size = size + 1;**/
 
+  int size = set->size;
+  int capacity = set->capacity;
+  if(size >= capacity) {
+    return;
+  }
+
+  set->vertices[size] = v;
+  set->size = size + 1;
 }
 
 void removeVertex(VertexSet *set, Vertex v)
@@ -96,7 +105,6 @@ void removeVertex(VertexSet *set, Vertex v)
   //set the last element back to -1 to indicate removal
   set->vertices[size-1] = -1; 
   set->size = size - 1;
-  
 }
 
 /**
