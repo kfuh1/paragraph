@@ -40,7 +40,6 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     bool removeDuplicates=true)
 {
   // TODO: Implement
-  //
   
   /** TOP DOWN
   int count = 0;
