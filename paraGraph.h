@@ -36,7 +36,8 @@
  * generation as these methods will be inlined.
  */
 template <class F>
-VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
+static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
+    bool removeDuplicates=true)
 {
   // TODO: Implement
   //
@@ -175,7 +176,7 @@ VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
  * return NULL (it need not build and create a vertex set)
  */
 template <class F>
-VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
+static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
   
