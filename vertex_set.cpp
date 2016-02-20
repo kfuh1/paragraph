@@ -31,6 +31,8 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
   
   // initializing
+  
+  #pragma omp parallel for 
   for (int i = 0; i < capacity; i++) {
     vertexSet->vertices[i] = -1;
   }
@@ -57,6 +59,7 @@ void addVertex(VertexSet *set, Vertex v)
   if(size >= capacity){
     return;
   }
+
   for(int i = 0; i < size; i++){
     //vertex already in set
     if(set->vertices[i] == v){
@@ -75,6 +78,7 @@ void removeVertex(VertexSet *set, Vertex v)
   int removeIdx;
   bool found = false;
   int size = set->size;
+
   for(int i = 0; i < size; i++){
     if(set->vertices[i] == v){
       removeIdx = i;

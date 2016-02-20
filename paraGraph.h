@@ -41,6 +41,7 @@ VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
   // TODO: Implement
   //
   
+  /** TOP DOWN
   int count = 0;
   bool* results = (bool*)malloc(sizeof(bool) * u->numNodes);
   for(int i = 0; i < u->numNodes; i++){
@@ -71,6 +72,45 @@ VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool removeDuplicates=true)
 
   //std::cout << "end edgeMap";
   
+  return vertexSet;**/
+
+  //BOTTOM UP
+  int count = 0;
+  bool* results = (bool*)malloc(sizeof(bool) * u->numNodes);
+  
+  #pragma omp parallel for  
+  for(int i = 0; i < u->numNodes; i++) {
+    results[i] = false;
+  }
+  
+  #pragma omp parallel for
+  for (int i = 0; i < u->numNodes; i++) {
+    Vertex srcVertex = i;
+    const Vertex* start = incoming_begin(g, srcVertex);
+    const Vertex* end = incoming_end(g, srcVertex);
+    
+    for (const Vertex* v = start; v != end; v++) {
+      for (int j = 0; j < u->size; j++) {
+        if (u->vertices[j] == *v) {
+          if (f.cond(i) && f.update(*v, i)) {
+            results[i] = true;
+            #pragma omp atomic
+            count++;
+          }   
+        }
+      }
+    }
+  }
+  
+  VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
+  #pragma omp parallel for 
+  for(int i = 0; i < u->numNodes; i++) {
+    if(results[i]) {
+      #pragma omp critical 
+      addVertex(vertexSet, i);
+    }
+  }
+
   return vertexSet;
 }
 
@@ -97,43 +137,37 @@ template <class F>
 VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
-  //
+  
   int size = u->size;
+
   if (!returnSet) {
+    #pragma omp parallel for  
     for (int j = 0; j < size; j++) {
-      //if (u->vertices[j] != -1) {
         f(u->vertices[j]);
-      //}
     }
     return NULL;
   }
   
   bool* results = (bool*)malloc(sizeof(bool) * size);
-  //int count = 0;
   
+  #pragma omp parallel for  
   for (int i = 0; i < size; i++) {
-    //if (u->vertices[i] != -1) {
       results[i] = f(u->vertices[i]);
-    /*  count++;
-    } else {
-      results[i] = false;
-    }*/
   }
 
   VertexSet* vertexSet = newVertexSet(u->type, size, u->numNodes);
   
   //print the vertices in the set - debug
+  
+  #pragma omp parallel for 
   for (int i = 0; i < size; i++) {
     if (results[i]) {
-      //printf("vertex %d\n", u->vertices[i]);
+      #pragma omp critical  
       addVertex(vertexSet, u->vertices[i]);
     }
   }
 
-  //std::cout << "end vertexMap";
-
   return vertexSet;
-  
 }
 
 #endif /* __PARAGRAPH_H__ */
