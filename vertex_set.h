@@ -5,6 +5,7 @@
 
 typedef enum {
   SPARSE,
+  DENSE,
 } VertexSetType;
 
 typedef struct {
@@ -13,6 +14,7 @@ typedef struct {
   int capacity; // Length of vertices array
   VertexSetType type; 
   Vertex* vertices;
+  bool* verticesDense;
 } VertexSet;
 
 VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes);

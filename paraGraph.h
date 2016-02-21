@@ -40,116 +40,109 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     bool removeDuplicates=true)
 {
   // TODO: Implement
-  
-  /** TOP DOWN
-  int count = 0;
-  bool* results = (bool*)malloc(sizeof(bool) * u->numNodes);
-  for(int i = 0; i < u->numNodes; i++){
-    results[i] = false;
-  }
-  //for each vertex in the given set loop through all the out-neighbors
-  //and apply f.cond and f.update
-  for (int i = 0; i < u->capacity; i++) {
-    Vertex srcVertex = u->vertices[i];
-    if(srcVertex == -1){
-      continue;
+  int size = u->size;
+  int numNodes = u->numNodes;
+  int outgoingCount = 0;
+  if(u->type == SPARSE){
+    #pragma omp parallel for
+    for(int i = 0; i < size; i++){
+      #pragma omp atomic
+      outgoingCount += outgoing_size(g, u->vertices[i]);
     }
-    const Vertex* start = outgoing_begin(g, srcVertex);
-    const Vertex* end = outgoing_end(g, srcVertex);
-    for (const Vertex* v = start; v != end; v++) {
-      if (f.cond(*v) && f.update(srcVertex, *v)) {
-        results[*v] = true;
-        count++;
+  }  
+  else{
+    #pragma omp parallel for
+    for(int i = 0; i < numNodes; i++){
+      if(u->verticesDense[i]){
+        #pragma omp atomic
+        outgoingCount += outgoing_size(g,i);
       }
     }
   }
-  VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
-  for(int i = 0; i < u->numNodes; i++){
-      if(results[i]){
-          addVertex(vertexSet, i);
-      }
-  }
-
-  //std::cout << "end edgeMap";
-  
-  return vertexSet;
-
-  //BOTTOM UP
+  double ratio = ((double)size)/((double)outgoingCount);
   int count = 0;
-  bool* results = (bool*)malloc(sizeof(bool) * u->numNodes);
-  
+  bool* results = (bool*)malloc(sizeof(bool) * numNodes);
+  VertexSet* vertexSet; 
   #pragma omp parallel for  
-  for(int i = 0; i < u->numNodes; i++) {
+  for(int i = 0; i < numNodes; i++) {
     results[i] = false;
   }
-  
-  #pragma omp parallel for
-  for (int i = 0; i < u->numNodes; i++) {
-    Vertex srcVertex = i;
-    const Vertex* start = incoming_begin(g, srcVertex);
-    const Vertex* end = incoming_end(g, srcVertex);
+
+  if(u->type == DENSE){
+    printf("DENSE\n");
+    #pragma omp parallel for
+    for (int i = 0; i < numNodes; i++) {
+      Vertex srcVertex = i;
+      const Vertex* start = incoming_begin(g, srcVertex);
+      const Vertex* end = incoming_end(g, srcVertex);
     
-    for (const Vertex* v = start; v != end; v++) {
-      for (int j = 0; j < u->size; j++) {
-        if (u->vertices[j] == *v) {
-          if (f.cond(i) && f.update(*v, i)) {
-            results[i] = true;
-            #pragma omp atomic
-            count++;
-          }   
+      for (const Vertex* v = start; v != end; v++) {
+        /*if(u->type == SPARSE){
+          for (int j = 0; j < u->size; j++) {
+            if (u->vertices[j] == *v) {
+              if (f.cond(i) && f.update(*v, i)) {
+                results[i] = true;
+                #pragma omp atomic
+                count++;
+              }   
+            }
+          }
+        }
+        else{*/
+          //if v is part of current frontier and conds pass
+        if(u->verticesDense[*v] && f.cond(i) && f.update(*v, i) && !results[i]){
+          results[i] = true;
+          #pragma omp atomic
+          count++;
+        }          
+        //}
+      }
+    }
+    if(count >= u->size){ 
+      vertexSet = newVertexSet(DENSE, count, u->numNodes);
+    }
+    else{
+      vertexSet = newVertexSet(SPARSE, count, u->numNodes);
+    }
+    #pragma omp parallel for 
+    for(int i = 0; i < u->numNodes; i++) {
+      if(results[i]) {
+        #pragma omp critical 
+        addVertex(vertexSet, i);
+      }
+    }
+
+  }
+  else{
+    printf("SPARSE\n");
+    //TOP DOWN
+    if(ratio < 1.0){
+      vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
+    }
+    else{
+      vertexSet = newVertexSet(SPARSE, u->numNodes, u->numNodes);
+    }
+    
+    //for each vertex in the given set loop through all the out-neighbors
+    //and apply f.cond and f.update
+  
+    #pragma omp parallel for 
+    for (int i = 0; i < u->capacity; i++) {
+      Vertex srcVertex = u->vertices[i];
+      if(i >= u->size){
+        continue;
+      }
+      const Vertex* start = outgoing_begin(g, srcVertex);
+      const Vertex* end = outgoing_end(g, srcVertex);
+      for (const Vertex* v = start; v != end; v++) {
+        #pragma omp critical
+        if (f.cond(*v) && f.update(srcVertex, *v) && !results[*v]) {
+          results[*v] = true;
+          addVertex(vertexSet, *v);
         }
       }
     }
   }
-  
-  VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
-  #pragma omp parallel for 
-  for(int i = 0; i < u->numNodes; i++) {
-    if(results[i]) {
-      #pragma omp critical 
-      addVertex(vertexSet, i);
-    }
-  }
-
-  return vertexSet;**/
-  
-  int count = 0;
-  bool* results = (bool*)malloc(sizeof(bool) * u->numNodes);
-  //bool* dups = (bool*)malloc(sizeof(bool) * u->numNodes);
-  #pragma omp parallel for 
-  for(int i = 0; i < u->numNodes; i++){
-    results[i] = false;
-  }
-  //for each vertex in the given set loop through all the out-neighbors
-  //and apply f.cond and f.update
-  
-  #pragma omp parallel for 
-  for (int i = 0; i < u->capacity; i++) {
-    Vertex srcVertex = u->vertices[i];
-    if(srcVertex == -1){
-      continue;
-    }
-    const Vertex* start = outgoing_begin(g, srcVertex);
-    const Vertex* end = outgoing_end(g, srcVertex);
-    for (const Vertex* v = start; v != end; v++) {
-      if (f.cond(*v) && f.update(srcVertex, *v)) {
-        results[*v] = true;
-        #pragma omp atomic
-        count++;
-      }
-    }
-  }
-  VertexSet* vertexSet = newVertexSet(u->type, count, u->numNodes);
-
-  #pragma omp parallel for 
-  for(int i = 0; i < u->numNodes; i++){
-      if(results[i]){
-          #pragma omp critical
-          addVertex(vertexSet, i);
-      }
-  }
-
-  //std::cout << "end edgeMap";
   
   free(results);
   return vertexSet;
@@ -178,73 +171,58 @@ template <class F>
 static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
-  
-  /** old implementation
+   
   int size = u->size;
-
-  if (!returnSet) {
-    #pragma omp parallel for  
-    for (int j = 0; j < size; j++) {
-        f(u->vertices[j]);
-    }
-    return NULL;
-  }
-  
-  bool* results = (bool*)malloc(sizeof(bool) * size);
-  
-  #pragma omp parallel for  
-  for (int i = 0; i < size; i++) {
-      results[i] = f(u->vertices[i]);
-  }
-
-  VertexSet* vertexSet = newVertexSet(u->type, size, u->numNodes);
-  
-  //print the vertices in the set - debug
-  
-  #pragma omp parallel for 
-  for (int i = 0; i < size; i++) {
-    if (results[i]) {
-      #pragma omp critical  
-      addVertex(vertexSet, u->vertices[i]);
-    }
-  }
-
-  return vertexSet;**/
-  
-  int size = u->size;
-
-  if (!returnSet) {
-    #pragma omp parallel for  
-    for (int j = 0; j < size; j++) {
-        f(u->vertices[j]);
-    }
-    return NULL;
-  }
-  
   bool* dups = (bool*)malloc(sizeof(bool) * u->numNodes);
-  bool* results = (bool*)malloc(sizeof(bool) * size);
-  
-  #pragma omp parallel for  
-  for (int i = 0; i < size; i++) {
-      results[i] = f(u->vertices[i]);
-  }
-
-  VertexSet* vertexSet = newVertexSet(u->type, size, u->numNodes);
-  
-  //print the vertices in the set - debug
-  
+  VertexSet* vertexSet;
   #pragma omp parallel for 
-  for (int i = 0; i < size; i++) {
-    if (results[i] && !dups[i]) {
-      dups[i] = true;
+  for(int i = 0; i < u->numNodes; i++){
+    dups[i] = false;
+  }
+  if(u->type == SPARSE){
+    if (!returnSet) {
+      //#pragma omp parallel for  
+      for (int j = 0; j < size; j++) {
+        f(u->vertices[j]);
+      }
+      free(dups);
+      //#pragma omp barrier
+      return NULL;
+    }
+  
+    vertexSet = newVertexSet(u->type, size, u->numNodes);
+   
+    #pragma omp parallel for 
+    for (int i = 0; i < size; i++) {
       #pragma omp critical  
-      addVertex(vertexSet, u->vertices[i]);
+      if (f(u->vertices[i]) && !dups[i]) {
+        dups[i] = true;
+        addVertex(vertexSet, u->vertices[i]);
+      }
     }
   }
-  
-  free(dups);
-  free(results);
+  else{
+    if(!returnSet){
+      for(int j = 0; j < u->numNodes; j++){
+        if(u->verticesDense[j]){
+          f(j);
+        }
+      }
+      free(dups);
+      return NULL;
+    }
+    vertexSet = newVertexSet(u->type, u->numNodes, u->numNodes);
+    #pragma omp parallel for
+    for(int i = 0; i < u->numNodes; i++){
+      #pragma omp critical
+      if(u->verticesDense[i] && f(i) && !dups[i]){
+        dups[i] = true;
+        addVertex(vertexSet, i);
+      }
+    }
+  }
 
+  free(dups);
   return vertexSet;
 }
 

@@ -42,7 +42,7 @@ void bfs(graph *g, int *solution) {
   Bfs f(g, solution);
 
   // Initialize frontier.
-  VertexSet* frontier = newVertexSet(SPARSE, 1, num_nodes(g));
+  VertexSet* frontier = newVertexSet(DENSE, 1, num_nodes(g));
   addVertex(frontier, 0);
 
   VertexSet *newFrontier;

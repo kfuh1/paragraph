@@ -19,25 +19,29 @@
 VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 {
   // TODO: Implement
-  //
-
-  //std::cout << "begin new" << std::endl;
 
   VertexSet* vertexSet = (VertexSet*)malloc(sizeof(VertexSet));
   vertexSet->type = type;
   vertexSet->size = 0;
   vertexSet->numNodes = numNodes;
   vertexSet->capacity = capacity;
-  vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
-  
-  // initializing
-  
-  #pragma omp parallel for 
-  for (int i = 0; i < capacity; i++) {
-    vertexSet->vertices[i] = -1;
-  }
 
-  //std::cout << "end new";
+  if(type == SPARSE){
+    vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
+    #pragma omp parallel for 
+    for (int i = 0; i < capacity; i++) {
+      vertexSet->vertices[i] = -1;
+    }
+    vertexSet->verticesDense = NULL;
+  }
+  else{
+    vertexSet->verticesDense = (bool*)malloc(sizeof(bool) * numNodes);
+    #pragma omp parallel for
+    for(int i = 0; i < numNodes; i++){
+      vertexSet->verticesDense[i] = false;
+    }
+    vertexSet->vertices = NULL;
+  }
   
   return vertexSet;
 }
@@ -45,65 +49,66 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 void freeVertexSet(VertexSet *set)
 {
   // TODO: Implement
-  free(set->vertices);
+  if(set->type == SPARSE){
+    free(set->vertices);
+  }
+  else{
+    free(set->verticesDense);
+  }
   free(set);
 }
 
 void addVertex(VertexSet *set, Vertex v)
 {
-  //printf("add vertex %d\n", (int) v);
   // TODO: Implement
   
-  /** old implementation
-  int size = set->size;
-  int capacity = set->capacity;
-  if(size >= capacity){
-    return;
-  }
-
-  for(int i = 0; i < size; i++){
-    //vertex already in set
-    if(set->vertices[i] == v){
-      return;
-    }
-  }
-  set->vertices[size] = v;
-  set->size = size + 1;**/
-
   int size = set->size;
   int capacity = set->capacity;
   if(size >= capacity) {
     return;
   }
 
-  set->vertices[size] = v;
+  if(set->type == SPARSE){
+    set->vertices[size] = v;
+  }
+  else{
+    set->verticesDense[v] = true;
+  }
+
   set->size = size + 1;
 }
 
 void removeVertex(VertexSet *set, Vertex v)
 {
   // TODO: Implement
-
-  int removeIdx;
-  bool found = false;
   int size = set->size;
+  if(set->type == SPARSE){
+    int removeIdx;
+    bool found = false;
 
-  for(int i = 0; i < size; i++){
-    if(set->vertices[i] == v){
-      removeIdx = i;
-      found = true;
-      break;
+    for(int i = 0; i < size; i++){
+      if(set->vertices[i] == v){
+        removeIdx = i;
+        found = true;
+        break;
+      }
+    } 
+    //v not in the set - nothing to remove
+    if(!found){
+      return;
     }
-  } 
-  //v not in the set - nothing to remove
-  if(!found){
-    return;
-  }
   
-  //move last vertex to empty spot so don't need to shift
-  set->vertices[removeIdx] = set->vertices[size];
-  //set the last element back to -1 to indicate removal
-  set->vertices[size-1] = -1; 
+    //move last vertex to empty spot so don't need to shift
+    set->vertices[removeIdx] = set->vertices[size];
+    //set the last element back to -1 to indicate removal
+    set->vertices[size-1] = -1; 
+  }
+  else{
+    if(set->vertices[v]){
+      return;
+    }
+    set->verticesDense[v] = false;
+  }
   set->size = size - 1;
 }
 
