@@ -69,7 +69,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   }
 
   if(u->type == DENSE){
-    printf("DENSE\n");
+    //printf("DENSE\n");
     #pragma omp parallel for
     for (int i = 0; i < numNodes; i++) {
       Vertex srcVertex = i;
@@ -114,7 +114,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
 
   }
   else{
-    printf("SPARSE\n");
+    //printf("SPARSE\n");
     //TOP DOWN
     if(ratio < 1.0){
       vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
