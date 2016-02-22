@@ -42,7 +42,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     bool removeDuplicates=true)
 {
   
-  double startTime = CycleTimer::currentSeconds();
+  //double startTime = CycleTimer::currentSeconds();
 
   // TODO: Implement
   int size = u->size;
@@ -69,20 +69,20 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   int count = 0;
   bool* results = (bool*)malloc(sizeof(bool) * numNodes);
   VertexSet* vertexSet; 
-  //#pragma omp parallel for  
+  #pragma omp parallel for  
   for(int i = 0; i < numNodes; i++) {
     results[i] = false;
   }
   
-  double endInitTime = CycleTimer::currentSeconds();
+  //double endInitTime = CycleTimer::currentSeconds();
 
-  printf("Init Time: %f\n", endInitTime - startTime);
+  //printf("Init Time: %f\n", endInitTime - startTime);
 
   if(u->type == DENSE){
-    double beginBuTime = CycleTimer::currentSeconds();
+    //double beginBuTime = CycleTimer::currentSeconds();
     //printf("DENSE: %d", size);
     //printf("\n");
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < numNodes; i++) {
       Vertex srcVertex = i;
       const Vertex* start = incoming_begin(g, srcVertex);
@@ -102,7 +102,8 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
         }
         else{*/
           //if v is part of current frontier and conds pass
-        if(u->verticesDense[*v] && f.cond(i) && f.update(*v, i) && !results[i]){
+        #pragma omp critical
+        if(u->verticesDense[*v] && f.cond(i) && f.update(*v, i)){
           results[i] = true;
           //#pragma omp atomic
           count++;
@@ -117,22 +118,22 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     else{
       vertexSet = newVertexSet(SPARSE, count, u->numNodes);
     }
-    //#pragma omp parallel for 
+    #pragma omp parallel for 
     for(int i = 0; i < u->numNodes; i++) {
       if(results[i]) {
-        //#pragma omp critical 
+        #pragma omp critical 
         addVertex(vertexSet, i);
       }
     }
 
-    double endBuTime = CycleTimer::currentSeconds();
-    printf("Bottom Up Time: %f\n", endBuTime - endBuTime);
+   // double endBuTime = CycleTimer::currentSeconds();
+    //printf("Bottom Up Time: %f\n", endBuTime - beginBuTime);
   }
   else{
     //printf("SPARSE: %d", size);
     //printf("\n");
     
-    double startTdTime = CycleTimer::currentSeconds();
+//    double startTdTime = CycleTimer::currentSeconds();
     //TOP DOWN
     /**if(ratio < 1.0){
       vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
@@ -144,7 +145,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     //for each vertex in the given set loop through all the out-neighbors
     //and apply f.cond and f.update
   
-    //#pragma omp parallel for 
+    #pragma omp parallel for 
     for (int i = 0; i < u->capacity; i++) {
       Vertex srcVertex = u->vertices[i];
       if(i >= u->size){
@@ -153,7 +154,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
       const Vertex* start = outgoing_begin(g, srcVertex);
       const Vertex* end = outgoing_end(g, srcVertex);
       for (const Vertex* v = start; v != end; v++) {
-        //#pragma omp critical
+        #pragma omp critical
         if (f.cond(*v) && f.update(srcVertex, *v) && !results[*v]) {
           results[*v] = true;
           //#pragma omp atomic
@@ -170,21 +171,21 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
       vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
     }
     
-    //#pragma omp parallel for 
+    #pragma omp parallel for 
     for(int i = 0; i < u->numNodes; i++) {
       if(results[i]) {
-        //#pragma omp critical 
+        #pragma omp critical 
         addVertex(vertexSet, i);
       }
     }
-    double endTdTime = CycleTimer::currentSeconds();
-    printf("Top Down Time: %f\n", endTdTime - startTdTime);
+//    double endTdTime = CycleTimer::currentSeconds();
+    //printf("Top Down Time: %f\n", endTdTime - startTdTime);
   }
   
   free(results);
 
-  double endTime = CycleTimer::currentSeconds();
-  printf("Edge Map Time: %f\n\n", endTime - startTime);
+//  double endTime = CycleTimer::currentSeconds();
+  //printf("Edge Map Time: %f\n\n", endTime - startTime);
 
   return vertexSet;
 }
@@ -213,7 +214,7 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
   //
-  double startTime = CycleTimer::currentSeconds();
+  //double startTime = CycleTimer::currentSeconds();
    
   int size = u->size;
   bool* dups = (bool*)malloc(sizeof(bool) * u->numNodes);
@@ -267,7 +268,7 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 
   free(dups);
 
-  double endTime = CycleTimer::currentSeconds();
+//  double endTime = CycleTimer::currentSeconds();
   //printf("Vertex Map Time: %f\n\n", endTime - startTime);
 
   return vertexSet;
