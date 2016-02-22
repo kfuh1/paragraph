@@ -69,14 +69,15 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   }
 
   if(u->type == DENSE){
-    //printf("DENSE\n");
+    //printf("DENSE: %d", size);
+    //printf("\n");
     #pragma omp parallel for
     for (int i = 0; i < numNodes; i++) {
       Vertex srcVertex = i;
       const Vertex* start = incoming_begin(g, srcVertex);
       const Vertex* end = incoming_end(g, srcVertex);
-    
-      for (const Vertex* v = start; v != end; v++) {
+       
+      for (const Vertex* v = start; v != end && !results[i]; v++) {
         /*if(u->type == SPARSE){
           for (int j = 0; j < u->size; j++) {
             if (u->vertices[j] == *v) {
@@ -94,11 +95,12 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
           results[i] = true;
           #pragma omp atomic
           count++;
+          //break;
         }          
         //}
       }
     }
-    if(count >= u->size){ 
+    if(count >= 5000){ 
       vertexSet = newVertexSet(DENSE, count, u->numNodes);
     }
     else{
@@ -114,14 +116,15 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
 
   }
   else{
-    //printf("SPARSE\n");
+    //printf("SPARSE: %d", size);
+    //printf("\n");
     //TOP DOWN
-    if(ratio < 1.0){
+    /**if(ratio < 1.0){
       vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
     }
     else{
       vertexSet = newVertexSet(SPARSE, u->numNodes, u->numNodes);
-    }
+    }**/
     
     //for each vertex in the given set loop through all the out-neighbors
     //and apply f.cond and f.update
@@ -135,11 +138,28 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
       const Vertex* start = outgoing_begin(g, srcVertex);
       const Vertex* end = outgoing_end(g, srcVertex);
       for (const Vertex* v = start; v != end; v++) {
-        #pragma omp critical
+        //#pragma omp critical
         if (f.cond(*v) && f.update(srcVertex, *v) && !results[*v]) {
           results[*v] = true;
-          addVertex(vertexSet, *v);
+          #pragma omp atomic
+          count++;
+          //addVertex(vertexSet, *v);
         }
+      }
+    }
+
+    if(count < 5000){
+      vertexSet = newVertexSet(SPARSE, u->numNodes, u->numNodes);
+    }
+    else{
+      vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
+    }
+    
+    #pragma omp parallel for 
+    for(int i = 0; i < u->numNodes; i++) {
+      if(results[i]) {
+        #pragma omp critical 
+        addVertex(vertexSet, i);
       }
     }
   }
