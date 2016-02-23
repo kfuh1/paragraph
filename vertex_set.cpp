@@ -28,7 +28,7 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 
   if(type == SPARSE){
     vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
-    #pragma omp parallel for 
+    //#pragma omp parallel for schedule(guided) 
     for (int i = 0; i < capacity; i++) {
       vertexSet->vertices[i] = -1;
     }
@@ -36,7 +36,7 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   }
   else{
     vertexSet->verticesDense = (bool*)malloc(sizeof(bool) * numNodes);
-    #pragma omp parallel for
+    //#pragma omp parallel for schedule(guided)
     for(int i = 0; i < numNodes; i++){
       vertexSet->verticesDense[i] = false;
     }
@@ -99,7 +99,7 @@ void removeVertex(VertexSet *set, Vertex v)
     }
   
     //move last vertex to empty spot so don't need to shift
-    set->vertices[removeIdx] = set->vertices[size];
+    set->vertices[removeIdx] = set->vertices[size-1];
     //set the last element back to -1 to indicate removal
     set->vertices[size-1] = -1; 
   }

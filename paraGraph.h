@@ -48,7 +48,9 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   int size = u->size;
   int numNodes = u->numNodes;
   int outgoingCount = 0;
-  /**if(u->type == SPARSE){
+
+  /** RATIO CALCULATIONS
+  if(u->type == SPARSE){
     //#pragma omp parallel for
     for(int i = 0; i < size; i++){
       //#pragma omp atomic
@@ -69,7 +71,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   int count = 0;
   bool* results = (bool*)malloc(sizeof(bool) * numNodes);
   VertexSet* vertexSet; 
-  #pragma omp parallel for  
+  //#pragma omp parallel for schedule(guided) 
   for(int i = 0; i < numNodes; i++) {
     results[i] = false;
   }
@@ -82,34 +84,20 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     //double beginBuTime = CycleTimer::currentSeconds();
     //printf("DENSE: %d", size);
     //printf("\n");
-    #pragma omp parallel for
+    //#pragma omp parallel for schedule(guided)
     for (int i = 0; i < numNodes; i++) {
       Vertex srcVertex = i;
       const Vertex* start = incoming_begin(g, srcVertex);
       const Vertex* end = incoming_end(g, srcVertex);
        
-      for (const Vertex* v = start; v != end && !results[i]; v++) {
-        /*if(u->type == SPARSE){
-          for (int j = 0; j < u->size; j++) {
-            if (u->vertices[j] == *v) {
-              if (f.cond(i) && f.update(*v, i)) {
-                results[i] = true;
-                #pragma omp atomic
-                count++;
-              }   
-            }
-          }
-        }
-        else{*/
-          //if v is part of current frontier and conds pass
-        #pragma omp critical
+      for (const Vertex* v = start; v < end && !results[i]; v++) {
+        //if v is part of current frontier and conds pass
+        //#pragma omp critical
         if(u->verticesDense[*v] && f.cond(i) && f.update(*v, i)){
           results[i] = true;
           //#pragma omp atomic
           count++;
-          //break;
         }          
-        //}
       }
     }
     if(count >= 5000){ 
@@ -118,48 +106,41 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     else{
       vertexSet = newVertexSet(SPARSE, count, u->numNodes);
     }
-    #pragma omp parallel for 
+    //#pragma omp parallel for schedule(guided)
     for(int i = 0; i < u->numNodes; i++) {
       if(results[i]) {
-        #pragma omp critical 
+        //#pragma omp critical 
         addVertex(vertexSet, i);
       }
     }
 
    // double endBuTime = CycleTimer::currentSeconds();
-    //printf("Bottom Up Time: %f\n", endBuTime - beginBuTime);
+   //printf("Bottom Up Time: %f\n", endBuTime - beginBuTime);
   }
   else{
     //printf("SPARSE: %d", size);
     //printf("\n");
     
-//    double startTdTime = CycleTimer::currentSeconds();
-    //TOP DOWN
-    /**if(ratio < 1.0){
-      vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
-    }
-    else{
-      vertexSet = newVertexSet(SPARSE, u->numNodes, u->numNodes);
-    }**/
+    //double startTdTime = CycleTimer::currentSeconds();
     
     //for each vertex in the given set loop through all the out-neighbors
     //and apply f.cond and f.update
-  
-    #pragma omp parallel for 
+    #//pragma omp parallel for schedule(guided)
     for (int i = 0; i < u->capacity; i++) {
       Vertex srcVertex = u->vertices[i];
-      if(i >= u->size){
-        continue;
-      }
-      const Vertex* start = outgoing_begin(g, srcVertex);
-      const Vertex* end = outgoing_end(g, srcVertex);
-      for (const Vertex* v = start; v != end; v++) {
-        #pragma omp critical
-        if (f.cond(*v) && f.update(srcVertex, *v) && !results[*v]) {
-          results[*v] = true;
-          //#pragma omp atomic
-          count++;
-          //addVertex(vertexSet, *v);
+      if(i < u->size) {
+        const Vertex* start = outgoing_begin(g, srcVertex);
+        const Vertex* end = outgoing_end(g, srcVertex);
+
+        //#pragma omp parallel for
+        for (const Vertex* v = start; v < end; v++) {
+          //#pragma omp critical
+          if (f.cond(*v) && f.update(srcVertex, *v) && !results[*v]) {
+            results[*v] = true;
+            //#pragma omp atomic
+            count++;
+            //addVertex(vertexSet, *v);
+          }
         }
       }
     }
@@ -171,20 +152,20 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
       vertexSet = newVertexSet(DENSE, u->numNodes, u->numNodes);
     }
     
-    #pragma omp parallel for 
+    //#pragma omp parallel for schedule(guided) 
     for(int i = 0; i < u->numNodes; i++) {
       if(results[i]) {
-        #pragma omp critical 
+        //#pragma omp critical 
         addVertex(vertexSet, i);
       }
     }
-//    double endTdTime = CycleTimer::currentSeconds();
+    //double endTdTime = CycleTimer::currentSeconds();
     //printf("Top Down Time: %f\n", endTdTime - startTdTime);
   }
   
   free(results);
 
-//  double endTime = CycleTimer::currentSeconds();
+  //double endTime = CycleTimer::currentSeconds();
   //printf("Edge Map Time: %f\n\n", endTime - startTime);
 
   return vertexSet;
@@ -219,13 +200,13 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
   int size = u->size;
   bool* dups = (bool*)malloc(sizeof(bool) * u->numNodes);
   VertexSet* vertexSet;
-  //#pragma omp parallel for 
+  //#pragma omp parallel for schedule(guided) 
   for(int i = 0; i < u->numNodes; i++){
     dups[i] = false;
   }
   if(u->type == SPARSE){
     if (!returnSet) {
-      //#pragma omp parallel for  
+      //#pragma omp parallel for schedule(guided)
       for (int j = 0; j < size; j++) {
         f(u->vertices[j]);
       }
@@ -236,7 +217,7 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
   
     vertexSet = newVertexSet(u->type, size, u->numNodes);
    
-    //#pragma omp parallel for 
+    //#pragma omp parallel for schedule(guided)
     for (int i = 0; i < size; i++) {
       //#pragma omp critical  
       if (f(u->vertices[i]) && !dups[i]) {
@@ -256,7 +237,7 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
       return NULL;
     }
     vertexSet = newVertexSet(u->type, u->numNodes, u->numNodes);
-    //#pragma omp parallel for
+    //#pragma omp parallel for schedule(guided)
     for(int i = 0; i < u->numNodes; i++){
       //#pragma omp critical
       if(u->verticesDense[i] && f(i) && !dups[i]){
@@ -268,7 +249,7 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 
   free(dups);
 
-//  double endTime = CycleTimer::currentSeconds();
+  //double endTime = CycleTimer::currentSeconds();
   //printf("Vertex Map Time: %f\n\n", endTime - startTime);
 
   return vertexSet;
