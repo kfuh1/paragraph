@@ -17,9 +17,6 @@
 #include "graph.h"
 #include "graph_internal.h"
 
-#define MAX_POINTS 4.5
-
-
 void visualize_results_grid(int* results, int dim);
 
 static void sep(std::ostream& out, char separator = '-', int length = 78)
@@ -54,11 +51,14 @@ mic_wrapper( int num_nodes, int *outgoing_starts
 
 
 // template<typename Fn, Fn ref, Fn stu, typename T, typename... Args>
-template<typename Fn, Fn ref, Fn stu, typename T>
+// The APP parameter ensures that each app gets a unique timeMIC function to
+// avoid linking problem.
+template<typename Fn, Fn ref, Fn stu, typename T, int APP>
 double timeMic
   ( std::stringstream& timing
   , int device
   , int numTrials
+  , double maxPoints
   , int minThreadCount
   , int maxThreadCount 
   , bool (*check)(Graph g, T* refSolution, T* stuSolution)
@@ -238,7 +238,7 @@ double timeMic
   /* Print and return grade */
   double fraction = stuBestTime / refBestTime * 100.0;
   double curve = 4.0 / 3.0 * (refBestTime / stuBestTime) - (1.0 / 3.0);
-  double points = std::min(MAX_POINTS, std::max(MAX_POINTS * curve, 0.0));
+  double points = std::min(maxPoints, std::max(maxPoints * curve, 0.0));
   points = (correct) ? points : 0.0;
 
   sep(timing, '-', 75);
@@ -265,10 +265,10 @@ double timeMic
 }
 
 #ifdef RUN_MIC
-  #define TIME_MIC(REF, STU, T) \
-    timeMic<decltype(&(MIC_WRAPPER(REF, T))), &(MIC_WRAPPER(REF, T)), &(MIC_WRAPPER(STU, T)), T>
+  #define TIME_MIC(REF, STU, T, n) \
+    timeMic<decltype(&(MIC_WRAPPER(REF, T))), &(MIC_WRAPPER(REF, T)), &(MIC_WRAPPER(STU, T)), T, (n)>
 #else
-  #define TIME_MIC(REF, STU, T) timeMic<decltype(&REF), &REF, &STU, T>
+  #define TIME_MIC(REF, STU, T, n) timeMic<decltype(&REF), &REF, &STU, T, (n)>
 #endif
 
 #endif

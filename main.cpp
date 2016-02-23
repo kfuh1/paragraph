@@ -63,8 +63,22 @@ bool compareApprox(Graph graph, T* ref, T* stu)
 template <class T>
 bool compareArraysAndDisplay(Graph graph, T* ref, T*stu) 
 {
-  printf("Visualization of results\n");
+  printf("\n----------------------------------\n");
+  printf("Visualization of student results");
+  printf("\n----------------------------------\n\n");
+
   int grid_dim = (int)sqrt(graph->num_nodes);
+  for (int j=0; j<grid_dim; j++) {
+    for (int i=0; i<grid_dim; i++) {
+      printf("%02d ", stu[j*grid_dim + i]);
+    }
+    printf("\n");
+  }
+  printf("\n----------------------------------\n");
+  printf("Visualization of reference results");
+  printf("\n----------------------------------\n\n");
+
+  grid_dim = (int)sqrt(graph->num_nodes);
   for (int j=0; j<grid_dim; j++) {
     for (int i=0; i<grid_dim; i++) {
       printf("%02d ", ref[j*grid_dim + i]);
@@ -120,7 +134,12 @@ void pageRankWrapper(Graph g, float* solution)
 
 void graphDecompWrapper(Graph g, int* solution) 
 {
-  decompose(g, solution, DecompBeta); 
+  int maxVal;
+  int maxId;
+  int* dus = getDus(g->num_nodes, DecompBeta, &maxVal, &maxId);
+
+  decompose(g, solution, dus, maxVal, maxId);
+  free(dus);
 }
 
 void pageRankRefWrapper (Graph g, float* solution)
@@ -131,7 +150,12 @@ void pageRankRefWrapper (Graph g, float* solution)
 // returns for every node, the cluster id it belongs to 
 void graphDecompRefWrapper(Graph g, int* solution) 
 {
-  decompose_ref(g, solution, DecompBeta); 
+  int maxVal;
+  int maxId;
+  int* dus = getDus_ref(g->num_nodes, DecompBeta, &maxVal, &maxId);
+
+  decompose_ref(g, solution, dus, maxVal, maxId);
+  free(dus);
 }
 
 void timingApp(std::ostream& timing, const char* appName)
@@ -201,33 +225,34 @@ int main(int argc, char** argv)
   if (arguments.app == BFS || arguments.app == GRADE) {
     /* BFS */
     timingApp(timing, "BFS");
-    possiblePoints += MAX_POINTS;
-    points += TIME_MIC(bfs_ref, bfs, int)
-      (timing, arguments.device, numTrials, min_threads, max_threads,
+    possiblePoints += 4.5;
+    points += TIME_MIC(bfs_ref, bfs, int, 1)
+      (timing, arguments.device, numTrials, 4.5, min_threads, max_threads,
       compareArrays<int>, graph);
   }
   if (arguments.app == PAGERANK || arguments.app == GRADE) {
     /* PageRank */
     timingApp(timing, "PageRank");
-    possiblePoints += MAX_POINTS;
-    points += TIME_MIC(pageRankRefWrapper, pageRankWrapper, float)
-      (timing, arguments.device, numTrials, min_threads, max_threads,
+    possiblePoints += 4.5;
+    points += TIME_MIC(pageRankRefWrapper, pageRankWrapper, float, 2)
+      (timing, arguments.device, numTrials, 4.5, min_threads, max_threads,
       compareApprox<float>, graph);
   }
   if (arguments.app == KBFS || arguments.app == GRADE) {
     /* kBFS */
     timingApp(timing, "kBFS");
-    possiblePoints += MAX_POINTS;
-    points += TIME_MIC(kBFS_ref, kBFS, int)
-      (timing, arguments.device, numTrials, min_threads, max_threads,
+    possiblePoints += 4.5;
+    points += TIME_MIC(kBFS_ref, kBFS, int, 3)
+      (timing, arguments.device, numTrials, 4.5, min_threads, max_threads,
       compareArraysAndRadiiEst<int>, graph);
   }
   if (arguments.app == DECOMP || arguments.app == GRADE) {
     /* GraphDecomposition */
     timingApp(timing, "Graph Decomposition");
-    possiblePoints += MAX_POINTS;
-    TIME_MIC(graphDecompRefWrapper, graphDecompWrapper, int)
-      (timing, arguments.device, numTrials, min_threads, max_threads,
+    // 5 total performance points for graph decomp, split between 4 graphs.
+    possiblePoints += 5.0/4;
+    points += TIME_MIC(graphDecompRefWrapper, graphDecompWrapper, int, 4)
+      (timing, arguments.device, numTrials, 5.0/4, min_threads, max_threads,
       compareArraysAndDisplay<int>, graph);
   }
 
