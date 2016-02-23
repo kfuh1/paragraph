@@ -28,7 +28,7 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 
   if(type == SPARSE){
     vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
-    //#pragma omp parallel for schedule(guided) 
+    //#pragma omp parallel for schedule(static)
     for (int i = 0; i < capacity; i++) {
       vertexSet->vertices[i] = -1;
     }
@@ -36,7 +36,7 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   }
   else{
     vertexSet->verticesDense = (bool*)malloc(sizeof(bool) * numNodes);
-    //#pragma omp parallel for schedule(guided)
+    //#pragma omp parallel for schedule(static)
     for(int i = 0; i < numNodes; i++){
       vertexSet->verticesDense[i] = false;
     }
