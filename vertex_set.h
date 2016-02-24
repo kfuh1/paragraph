@@ -26,6 +26,8 @@ void removeVertex(VertexSet *set, Vertex v);
 void convertToDense(VertexSet *set);
 void convertToSparse(VertexSet *set);
 
+void scan(int length, int* output);
+
 VertexSet*  vertexUnion(VertexSet *u, VertexSet* v);
 
 #endif // __VERTEX_SET__

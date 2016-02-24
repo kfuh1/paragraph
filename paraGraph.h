@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <omp.h>
+
 /*
  * edgeMap --
  * 
@@ -117,13 +118,33 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results,
       
     }
     set = newVertexSet(SPARSE, count, numNodes);
+
+    int* scanResults = (int*)malloc(numNodes * sizeof(int));
+    #pragma omg parallel for schedule(static)
+    for(int j = 0; j < numNodes; j++) {
+      scanResults[j] = results[j];
+    }
+    
+    scan(numNodes, scanResults);
+     
     #pragma omp parallel for schedule(static)
+    for(int i = 0; i < numNodes; i++) {
+      if(results[i]) {
+        int index = scanResults[i];
+        set->verticesSparse[index] = i;
+      }
+    }
+    
+    free(scanResults);
+    set->size = count;
+
+    /**#pragma omp parallel for schedule(static)
     for(int i = 0; i < numNodes; i++){
       if(results[i]){
         #pragma omp critical
         addVertex(set, i);
       }
-    }
+    }**/
   }
   return set;
 }
