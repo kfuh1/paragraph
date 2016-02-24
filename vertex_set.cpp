@@ -116,7 +116,7 @@ void scan(int length, int* output)
 
       #pragma omp parallel for schedule(static)
       for (int i = 0; i < N; i += twod1) {
-        output[i+twod1-1] += output[i+twod-1];
+          output[i+twod1-1] += output[i+twod-1];
       }
     }
     
@@ -128,9 +128,9 @@ void scan(int length, int* output)
 
       #pragma omp parallel for schedule(static)
       for (int i = 0; i < N; i += twod1) {
-        int t = output[i+twod-1];
-        output[i+twod-1] = output[i+twod1-1];
-        output[i+twod1-1] += t; // change twod1 to twod to reverse prefix sum.
+          int t = output[i+twod-1];
+          output[i+twod-1] = output[i+twod1-1];
+          output[i+twod1-1] += t; // change twod1 to twod to reverse prefix sum.
       }
     }
 }

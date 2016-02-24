@@ -36,7 +36,7 @@
  * generation as these methods will be inlined.
  */
 template <class F>
-static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results,
+static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results, int* scanResults,
     bool removeDuplicates=true)
 {
   // TODO: Implement
@@ -117,15 +117,32 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results,
       }
       
     }
+
+    int n = numNodes;
+
+    /* Helper function to round up to a power of 2. 
+    *  */
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+
     set = newVertexSet(SPARSE, count, numNodes);
 
-    int* scanResults = (int*)malloc(numNodes * sizeof(int));
-    #pragma omg parallel for schedule(static)
+    #pragma omp parallel for schedule(static)
+    for(int i = numNodes; i < n; i++) {
+      scanResults[i] = 0;
+    }
+
+    #pragma omp parallel for schedule(static)
     for(int j = 0; j < numNodes; j++) {
       scanResults[j] = results[j];
     }
     
-    scan(numNodes, scanResults);
+    scan(n, scanResults);
      
     #pragma omp parallel for schedule(static)
     for(int i = 0; i < numNodes; i++) {
@@ -135,7 +152,6 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results,
       }
     }
     
-    free(scanResults);
     set->size = count;
 
     /**#pragma omp parallel for schedule(static)
