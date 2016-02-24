@@ -36,13 +36,26 @@
  * generation as these methods will be inlined.
  */
 template <class F>
-static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results, int* scanResults,
+static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     bool removeDuplicates=true)
 {
   // TODO: Implement
   int numNodes = u->numNodes;
   int size = u->size;
   int outSize = 0;
+
+  int n = numNodes;
+
+  /* Helper function to round up to a power of 2. */
+  n--;
+  n |= n >> 1;
+  n |= n >> 2;
+  n |= n >> 4;
+  n |= n >> 8;
+  n |= n >> 16;
+  n++;
+  int* results = (int*)malloc(sizeof(int) * num_nodes(g));
+  int* scanResults = (int*)malloc(n * sizeof(int));
 
   //get number of outgoing edges
   if(u->type == DENSE){
@@ -68,9 +81,9 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results, int* scanRe
   for(int i = 0; i < numNodes; i++){
     results[i] = 0;
   } 
-
+  int cmpSize = outSize + 3 * size;
   //Bottom up
-  if(outSize > numNodes / (16 * omp_get_num_threads())){
+  if(cmpSize > numNodes / (4 * omp_get_num_threads())){
     set = newVertexSet(DENSE, numNodes, numNodes);
     convertToDense(u); 
 
@@ -118,24 +131,13 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results, int* scanRe
       
     }
 
-    int n = numNodes;
-
-    /* Helper function to round up to a power of 2. 
-    *  */
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n++;
 
     set = newVertexSet(SPARSE, count, numNodes);
 
-    #pragma omp parallel for schedule(static)
+    /*#pragma omp parallel for schedule(static)
     for(int i = numNodes; i < n; i++) {
       scanResults[i] = 0;
-    }
+    }*/
 
     #pragma omp parallel for schedule(static)
     for(int j = 0; j < numNodes; j++) {
@@ -154,14 +156,9 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results, int* scanRe
     
     set->size = count;
 
-    /**#pragma omp parallel for schedule(static)
-    for(int i = 0; i < numNodes; i++){
-      if(results[i]){
-        #pragma omp critical
-        addVertex(set, i);
-      }
-    }**/
   }
+  free(scanResults);
+  free(results);
   return set;
 }
 
@@ -188,6 +185,16 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
   // TODO: Implement
   int numNodes = u->numNodes;
+  int n = numNodes;
+  n--;
+  n |= n >> 1;
+  n |= n >> 2;
+  n |= n >> 4;
+  n |= n >> 8;
+  n |= n >> 16;
+  n++;
+  int* results = (int*)malloc(sizeof(int) * numNodes);
+  int* scanResults = (int*)malloc(n * sizeof(int));
   if(!returnSet){
     if(u->type == DENSE){
       #pragma omp parallel for schedule(static)
@@ -217,17 +224,37 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
     }
   }
   else{
+    int count = 0;
     //make a guess at size of new set; can only be as big as original
-    set = newVertexSet(u->type, u->size, numNodes);
     #pragma omp parallel for schedule(static)
     for(int i = 0; i < u->size; i++){
       if(f(u->verticesSparse[i])){
-        #pragma omp critical
-        addVertex(set, u->verticesSparse[i]);
+        results[u->verticesSparse[i]] = 1;
+        #pragma omp atomic
+        count++;
       }
     }
-  }
+    set = newVertexSet(u->type, count, numNodes);
+    #pragma omp parallel for schedule(static)
+    for(int j = 0; j < numNodes; j++) {
+      scanResults[j] = results[j];
+    }
+    
+    scan(n, scanResults);
+     
+    #pragma omp parallel for schedule(static)
+    for(int i = 0; i < numNodes; i++) {
+      if(results[i]) {
+        int index = scanResults[i];
+        set->verticesSparse[index] = i;
+      }
+    }
+    
+    set->size = count;
 
+  }
+  free(results);
+  free(scanResults);
   return set;
 }
 
