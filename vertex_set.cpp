@@ -63,6 +63,7 @@ void addVertex(VertexSet *set, Vertex v)
   else{
     set->verticesSparse[size] = v;
     set->size += 1;
+    
   }
   
 }
@@ -81,11 +82,11 @@ void convertToDense(VertexSet *set){
   if(set->type == DENSE){
     return;
   }
-  #pragma parallel for schedule(static)
+  #pragma omp parallel for schedule(static)
   for(int i = 0; i < set->numNodes; i++){
     set->verticesDense[i] = false; 
   }
-  #pragma parallel for schedule(static)
+  #pragma omp parallel for schedule(static)
   for(int i = 0; i < set->size; i++){
     int v = set->verticesSparse[i];
     set->verticesDense[v] = true; 
@@ -97,11 +98,9 @@ void convertToSparse(VertexSet *set){
     return;
   }
   int idx = 0;
-  #pragma parallel for schedule(static)
   for(int i = 0; i < set->numNodes && idx < set->size; i++){
     if(set->verticesDense[i]){
       set->verticesSparse[idx] = i;
-      #pragma omp atomic
       idx++;
     }
   }

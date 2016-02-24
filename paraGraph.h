@@ -11,6 +11,7 @@
 #include "mic.h"
 
 #include <stdio.h>
+#include <omp.h>
 /*
  * edgeMap --
  * 
@@ -44,15 +45,19 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool* results,
 
   //get number of outgoing edges
   if(u->type == DENSE){
+    #pragma omp parallel for reduction(+:outSize) schedule(static)
     for(int i = 0; i < numNodes; i++){
       if(u->verticesDense[i]){
-        outSize += outgoing_size(g, i); 
+        int nodeOutSize = outgoing_size(g,i);
+        outSize += nodeOutSize; 
       }
     }
   }
   else{
+    #pragma omp parallel for reduction(+:outSize) schedule(static)
     for(int i = 0; i < size; i++){
-      outSize += outgoing_size(g, u->verticesSparse[i]);
+      int nodeOutSize = outgoing_size(g, u->verticesSparse[i]);
+      outSize += nodeOutSize;
     }
   }
 
@@ -64,7 +69,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool* results,
   } 
 
   //Bottom up
-  if(outSize > numNodes / 2){
+  if(outSize > numNodes / (16 * omp_get_num_threads())){
     set = newVertexSet(DENSE, numNodes, numNodes);
     convertToDense(u); 
 
@@ -156,6 +161,7 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
       }
     }
     else{
+      #pragma omp parallel for schedule(static)
       for(int i = 0; i < u->size; i++){
         f(u->verticesSparse[i]);
       }

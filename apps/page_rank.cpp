@@ -99,7 +99,7 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
   int numNodes = num_nodes(g);
   State<float> s(g, damping, convergence);
 
-  VertexSet* frontier = newVertexSet(SPARSE, numNodes, numNodes);
+  VertexSet* frontier = newVertexSet(DENSE, numNodes, numNodes);
   for (int i = 0; i < numNodes; i++) {
     addVertex(frontier, i);
   }
