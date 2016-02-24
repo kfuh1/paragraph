@@ -120,7 +120,6 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   }
   else{
     //printf("SPARSE: %d", size);
-    //printf("\n");
     
     //double startTdTime = CycleTimer::currentSeconds();
     
