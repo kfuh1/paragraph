@@ -46,7 +46,7 @@ void bfs(graph *g, int *solution) {
   addVertex(frontier, 0);
 
   VertexSet *newFrontier;
-  bool* results = (bool*)malloc(sizeof(bool) * num_nodes(g));
+  int* results = (int*)malloc(sizeof(int) * num_nodes(g));
   while (frontier->size != 0) {
     newFrontier = edgeMap<Bfs>(g, frontier, f, results);
     freeVertexSet(frontier);

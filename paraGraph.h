@@ -35,7 +35,7 @@
  * generation as these methods will be inlined.
  */
 template <class F>
-static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool* results,
+static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, int* results,
     bool removeDuplicates=true)
 {
   // TODO: Implement
@@ -65,7 +65,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool* results,
   VertexSet* set;
   #pragma omp parallel for schedule(static)
   for(int i = 0; i < numNodes; i++){
-    results[i] = false;
+    results[i] = 0;
   } 
 
   //Bottom up
@@ -85,7 +85,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool* results,
 
       for(const Vertex* v = start; v < end; v++){
         if(u->verticesDense[*v] && f.update(*v, i)){
-          results[i] = true;
+          results[i] = 1;
         }
       }
     }
@@ -109,7 +109,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f, bool* results,
 
       for(const Vertex* v = start; v < end; v++){
         if(f.cond(*v) && f.update(src, *v)){
-          results[*v] = true;
+          results[*v] = 1;
           #pragma omp atomic
           count++;
         }

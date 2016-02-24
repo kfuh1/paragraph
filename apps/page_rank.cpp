@@ -104,7 +104,7 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
     addVertex(frontier, i);
   }
 
-  bool* results = (bool*)malloc(sizeof(bool) * numNodes);
+  int* results = (int*)malloc(sizeof(int) * numNodes);
   float error = INFINITY;
   while (error > convergence) {
     Local<float> local(g, s.pcurr, s.pnext, s.diff, damping);

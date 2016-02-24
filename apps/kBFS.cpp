@@ -185,7 +185,7 @@ void kBFS(graph *g, int *distField) {
 
   VertexSet *newFrontier;
 
-  bool* results = (bool *)malloc(sizeof(bool) * g->num_nodes);
+  int* results = (int *)malloc(sizeof(int) * g->num_nodes);
 
   while (frontier->size > 0) {
     iter = iter + 1;
