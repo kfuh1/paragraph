@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include "mic.h"
 
+// comment
+
 /**
  * Creates an empty VertexSet with the given type and capacity.
  * numNodes is the total number of nodes in the graph.
