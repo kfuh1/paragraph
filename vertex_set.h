@@ -4,16 +4,16 @@
 #include "graph.h"
 
 typedef enum {
-  SPARSE,
   DENSE,
+  SPARSE,
 } VertexSetType;
 
 typedef struct {
   int size;     // Number of nodes in the set
   int numNodes; // Number of nodes in the graph
-  int capacity; // Length of vertices array
+  int capacity;
   VertexSetType type; 
-  Vertex* vertices;
+  Vertex* verticesSparse;
   bool* verticesDense;
 } VertexSet;
 
@@ -22,6 +22,9 @@ void freeVertexSet(VertexSet *set);
 
 void addVertex(VertexSet *set, Vertex v);
 void removeVertex(VertexSet *set, Vertex v);
+
+void convertToDense(VertexSet *set);
+void convertToSparse(VertexSet *set);
 
 VertexSet*  vertexUnion(VertexSet *u, VertexSet* v);
 

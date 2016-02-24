@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include "mic.h"
 
-#include <iostream>
-
 /**
  * Creates an empty VertexSet with the given type and capacity.
  * numNodes is the total number of nodes in the graph.
@@ -19,97 +17,94 @@
 VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 {
   // TODO: Implement
-
   VertexSet* vertexSet = (VertexSet*)malloc(sizeof(VertexSet));
   vertexSet->type = type;
   vertexSet->size = 0;
-  vertexSet->numNodes = numNodes;
   vertexSet->capacity = capacity;
-
-  if(type == SPARSE){
-    vertexSet->vertices = (Vertex*)malloc(sizeof(Vertex) * capacity);
-    //#pragma omp parallel for schedule(static)
-    for (int i = 0; i < capacity; i++) {
-      vertexSet->vertices[i] = -1;
-    }
-    vertexSet->verticesDense = NULL;
-  }
-  else{
-    vertexSet->verticesDense = (bool*)malloc(sizeof(bool) * numNodes);
-    //#pragma omp parallel for schedule(static)
-    for(int i = 0; i < numNodes; i++){
-      vertexSet->verticesDense[i] = false;
-    }
-    vertexSet->vertices = NULL;
-  }
+  vertexSet->numNodes = numNodes;
   
+  vertexSet->verticesDense = (bool*)malloc(sizeof(bool) * numNodes);
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numNodes; i++){
+    vertexSet->verticesDense[i] = false;
+  }
+  vertexSet->verticesSparse = (Vertex*)malloc(sizeof(Vertex) * capacity);
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < capacity; i++){
+    vertexSet->verticesSparse[i] = -1;
+  }
   return vertexSet;
 }
 
 void freeVertexSet(VertexSet *set)
 {
-  // TODO: Implement
-  if(set->type == SPARSE){
-    free(set->vertices);
+  if(set->type == DENSE){
+    free(set->verticesDense);
   }
   else{
-    free(set->verticesDense);
+    free(set->verticesSparse);
   }
   free(set);
 }
 
 void addVertex(VertexSet *set, Vertex v)
 {
-  // TODO: Implement
-  
   int size = set->size;
   int capacity = set->capacity;
-  if(size >= capacity) {
+  if(size >= capacity){
     return;
   }
-
-  if(set->type == SPARSE){
-    set->vertices[size] = v;
+  //assuming no duplicates ever added
+  if(set->type == DENSE){
+    set->verticesDense[v] = true;
+    #pragma omp atomic
+    set->size += 1;
   }
   else{
-    set->verticesDense[v] = true;
+    set->verticesSparse[size] = v;
+    set->size += 1;
   }
-
-  set->size = size + 1;
+  
 }
 
 void removeVertex(VertexSet *set, Vertex v)
 {
-  // TODO: Implement
-  int size = set->size;
-  if(set->type == SPARSE){
-    int removeIdx;
-    bool found = false;
+  //TODO not implemented yet because nothing calls this
+  /*if(!set->vertices[v]){
+    return;
+  }
+  set->vertices[v] = false;
+  set->size -= 1;*/
+}
 
-    for(int i = 0; i < size; i++){
-      if(set->vertices[i] == v){
-        removeIdx = i;
-        found = true;
-        break;
-      }
-    } 
-    //v not in the set - nothing to remove
-    if(!found){
-      return;
-    }
-  
-    //move last vertex to empty spot so don't need to shift
-    set->vertices[removeIdx] = set->vertices[size-1];
-    //set the last element back to -1 to indicate removal
-    set->vertices[size-1] = -1; 
+void convertToDense(VertexSet *set){
+  if(set->type == DENSE){
+    return;
   }
-  else{
-    if(set->vertices[v]){
-      return;
-    }
-    set->verticesDense[v] = false;
+  #pragma parallel for schedule(static)
+  for(int i = 0; i < set->numNodes; i++){
+    set->verticesDense[i] = false; 
   }
-  set->size = size - 1;
+  #pragma parallel for schedule(static)
+  for(int i = 0; i < set->size; i++){
+    int v = set->verticesSparse[i];
+    set->verticesDense[v] = true; 
+  }
+}
+
+void convertToSparse(VertexSet *set){
+  if(set->type == SPARSE){
+    return;
+  }
+  int idx = 0;
+  #pragma parallel for schedule(static)
+  for(int i = 0; i < set->numNodes && idx < set->size; i++){
+    if(set->verticesDense[i]){
+      set->verticesSparse[idx] = i;
+      #pragma omp atomic
+      idx++;
+    }
+  }
 }
 
 /**

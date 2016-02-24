@@ -185,10 +185,12 @@ void kBFS(graph *g, int *distField) {
 
   VertexSet *newFrontier;
 
+  bool* results = (bool *)malloc(sizeof(bool) * g->num_nodes);
+
   while (frontier->size > 0) {
     iter = iter + 1;
     RadiiUpdate ru(visited, nextVisited, radii, iter);
-    newFrontier = edgeMap(g, frontier, ru);
+    newFrontier = edgeMap(g, frontier, ru, results);
 
     freeVertexSet(frontier);
     frontier = newFrontier;
@@ -202,6 +204,7 @@ void kBFS(graph *g, int *distField) {
     free(nextVisited[i]);
   }
 
+  free(results);
   freeVertexSet(frontier);
   free(visited);
   free(nextVisited);

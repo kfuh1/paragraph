@@ -42,17 +42,18 @@ void bfs(graph *g, int *solution) {
   Bfs f(g, solution);
 
   // Initialize frontier.
-  VertexSet* frontier = newVertexSet(DENSE, 1, num_nodes(g));
+  VertexSet* frontier = newVertexSet(SPARSE, 1, num_nodes(g));
   addVertex(frontier, 0);
 
   VertexSet *newFrontier;
-
+  bool* results = (bool*)malloc(sizeof(bool) * num_nodes(g));
   while (frontier->size != 0) {
-    newFrontier = edgeMap<Bfs>(g, frontier, f);
+    newFrontier = edgeMap<Bfs>(g, frontier, f, results);
     freeVertexSet(frontier);
     frontier = newFrontier;
     f.currentDistance++;
   }
 
+  free(results);
   freeVertexSet(frontier);
 }

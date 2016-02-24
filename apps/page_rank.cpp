@@ -104,11 +104,12 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
     addVertex(frontier, i);
   }
 
+  bool* results = (bool*)malloc(sizeof(bool) * numNodes);
   float error = INFINITY;
   while (error > convergence) {
     Local<float> local(g, s.pcurr, s.pnext, s.diff, damping);
 
-    VertexSet* frontier2 = edgeMap<State<float> >(g, frontier, s);
+    VertexSet* frontier2 = edgeMap<State<float> >(g, frontier, s, results);
     VertexSet* frontier3 = vertexMap<Local<float> >(frontier2, local);
 
     freeVertexSet(frontier);
@@ -118,7 +119,7 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
     error = s.getError();
     std::swap(s.pcurr, s.pnext);
   }
-
+  free(results);
   freeVertexSet(frontier);
   memcpy(solution, s.pcurr, sizeof(float) * numNodes);
 }
