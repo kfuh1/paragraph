@@ -8,6 +8,8 @@
 
 #define NA -1
 
+// comment
+
 class Bfs
 {
   public:
