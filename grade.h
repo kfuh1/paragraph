@@ -17,7 +17,100 @@
 #include "graph.h"
 #include "graph_internal.h"
 
-void visualize_results_grid(int* results, int dim);
+#include "parse_args.h"
+#include "contracts.h"
+
+// Epsilon for approximate float comparisons
+#define EPSILON 0.001f
+
+// Output column size
+#define COL_SIZE 15
+
+/*
+ * Reference times on the phi
+ * For grading student performance when the reference is not run.
+ * Indexed by [APP][graph][number of threads (64, 128, 236)]
+ */
+// TODO(kku): Ugly hard-coded size
+static double refTimeTable[4][4][3] = {
+  // BFS
+  {
+    // com-orkut_117m.graph
+    {0.2078, 0.1357, 0.2209}, // adjusted
+    // soc-livejournal1_68m
+    {0.2347, 0.2123, 0.2704},
+    // rmat_200m
+    {1.5444, 1.0811, 1.0658},
+    // soc-pokec_30m
+    {0.1962, 0.1760, 0.2879} // adjusted
+  },
+  // PAGERANK
+  {
+    // com-orkut_117m.graph
+    {3.5203, 2.0160, 1.3421}, // adjusted
+    // soc-livejournal1_68m
+    {1.9369, 1.1051, 0.7757},
+    // rmat_200m
+    {11.3733, 6.3221, 4.3275},
+    // soc-pokec_30m
+    {1.1019, 0.6059, 0.4016} // adjusted
+  },
+  // KBFS
+  {
+    // com-orkut_117m.graph
+    {39.9503, 25.5576, 18.8067}, // adjusted
+    // soc-livejournal1_68m
+    {9.8073, 7.9282, 7.6994}, // adjusted
+    // rmat_200m
+    {66.0763, 49.6047, 44.6521},
+    // soc-pokec_30m
+    {4.3053, 3.4722, 3.1474}
+  },
+  // DECOMP
+  {
+    // com-orkut_117m.graph
+    {2.9623, 2.3680, 2.1731},
+    // soc-livejournal1_68m
+    {2.9650, 2.6828, 2.6310},
+    // rmat_200m
+    {20.4276, 18.0206, 17.2282},
+    // soc-pokec_30m
+    {1.1637, 1.0159, 1.0074}
+  }
+};
+
+// Get index into refTimeTable for a given number of threads.
+static int getThreadIndex(int numThreads) {
+  if (numThreads == 64)
+    return 0;
+  else if (numThreads == 128)
+    return 1;
+  return 2;
+}
+
+// Get index into refTimeTable for a given graph.
+static int getGraphIndex(Graph g) {
+  // com-orkut_117m.graph
+  if (num_nodes(g) == 3072441)
+    return 0;
+  // soc-livejournal1_68m
+  if (num_nodes(g) == 4847571)
+    return 1;
+  // rmat_200m
+  if (num_nodes(g) == 33554432)
+    return 2;
+  // soc-pokec_30m
+  if (num_nodes(g) == 1632803)
+    return 3;
+  
+  // Should not get here.
+  ENSURES(false);
+  return -1;
+}
+
+/*
+ * Printing functions
+ */
 
 static void sep(std::ostream& out, char separator = '-', int length = 78)
 {
@@ -26,93 +119,147 @@ static void sep(std::ostream& out, char separator = '-', int length = 78)
     out << std::endl;
 }
 
-/* Phi wrapper */
-template<typename Fn, Fn fn, typename T, typename... Args>
-typename std::result_of<Fn(Graph, T*, Args...)>::type
-mic_wrapper( int num_nodes, int *outgoing_starts
-           , int *outgoing_edges, int *incoming_starts
-           , int *incoming_edges, int num_edges
-           , T* solution
-           , Args... args
-           )
+static void printTimingApp(std::ostream& timing, const char* appName)
 {
-  graph g;
+  std::cout << std::endl;
+  std::cout << "Timing results for " << appName << ":" << std::endl;
+  sep(std::cout, '=', 75);
 
-  g.num_nodes = num_nodes;
-  g.num_edges = num_edges;
-  g.outgoing_starts = outgoing_starts;
-  g.outgoing_edges = outgoing_edges;
-  g.incoming_starts = incoming_starts;
-  g.incoming_edges = incoming_edges;
-
-  return fn (&g, solution, args...);
+  timing << std::endl;
+  timing << "Timing results for " << appName << ":" << std::endl;
+  sep(timing, '=', 75);
 }
-#define MIC_WRAPPER(FUNC, T) mic_wrapper<decltype(&(FUNC)), &(FUNC), T>
 
+/*
+ * Correctness checkers
+ */
 
-// template<typename Fn, Fn ref, Fn stu, typename T, typename... Args>
-// The APP parameter ensures that each app gets a unique timeMIC function to
-// avoid linking problem.
-template<typename Fn, Fn ref, Fn stu, typename T, int APP>
-double timeMic
-  ( std::stringstream& timing
-  , int device
-  , int numTrials
-  , double maxPoints
-  , int minThreadCount
-  , int maxThreadCount 
-  , bool (*check)(Graph g, T* refSolution, T* stuSolution)
-  , Graph graph
-  // , Args... args
-  )
+template <class T>
+bool compareArrays(Graph graph, T* ref, T* stu)
 {
-  // typedef typename std::result_of<Fn(Graph, Args...)>::type result_type;
+  for (int i = 0; i < graph->num_nodes; i++) {
+    if (ref[i] != stu[i]) {
+      std::cerr << "*** Results disagree at " << i << " expected " 
+        << ref[i] << " found " << stu[i] << std::endl;
+      return false;
+    }
+  }
+  return true;
+}
+
+template <class T>
+bool compareApprox(Graph graph, T* ref, T* stu)
+{
+  for (int i = 0; i < graph->num_nodes; i++) {
+    if (abs(ref[i] - stu[i]) > EPSILON) {
+      std::cerr << "*** Results disagree at " << i << " expected " 
+        << ref[i] << " found " << stu[i] << std::endl;
+      return false;
+    }
+  }
+  return true;
+}
+
+template <class T>
+bool compareArraysAndDisplay(Graph graph, T* ref, T*stu) 
+{
+  printf("\n----------------------------------\n");
+  printf("Visualization of student results");
+  printf("\n----------------------------------\n\n");
+
+  int grid_dim = (int)sqrt(graph->num_nodes);
+  for (int j=0; j<grid_dim; j++) {
+    for (int i=0; i<grid_dim; i++) {
+      printf("%02d ", stu[j*grid_dim + i]);
+    }
+    printf("\n");
+  }
+  printf("\n----------------------------------\n");
+  printf("Visualization of reference results");
+  printf("\n----------------------------------\n\n");
+
+  grid_dim = (int)sqrt(graph->num_nodes);
+  for (int j=0; j<grid_dim; j++) {
+    for (int i=0; i<grid_dim; i++) {
+      printf("%02d ", ref[j*grid_dim + i]);
+    }
+    printf("\n");
+  }
+  
+  return compareArrays<T>(graph, ref, stu);
+}
+
+template <class T>
+bool compareArraysAndRadiiEst(Graph graph, T* ref, T* stu) 
+{
+  bool isCorrect = true;
+  for (int i = 0; i < graph->num_nodes; i++) {
+    if (ref[i] != stu[i]) {
+      std::cerr << "*** Results disagree at " << i << " expected "
+        << ref[i] << " found " << stu[i] << std::endl;
+	isCorrect = false;
+    }
+  }
+  int stuMaxVal = -1;
+  int refMaxVal = -1;
+  #pragma omp parallel for schedule(dynamic, 512) reduction(max: stuMaxVal)
+  for (int i = 0; i < graph->num_nodes; i++) {
+	if (stu[i] > stuMaxVal)
+		stuMaxVal = stu[i];
+  }
+  #pragma omp parallel for schedule(dynamic, 512) reduction(max: refMaxVal)
+  for (int i = 0; i < graph->num_nodes; i++) {
+        if (ref[i] > refMaxVal)
+                refMaxVal = ref[i];
+  }
+ 
+  if (refMaxVal != stuMaxVal) {
+	std::cerr << "*** Radius estimates differ. Expected: " << refMaxVal << " Got: " << stuMaxVal << std::endl;
+	isCorrect = false;
+  }   
+  return isCorrect;
+}
+
+/*
+ * Time and score an app
+ */
+
+// Returns score for the app.
+template<typename T, App APP>
+double timeApp(Graph g, int device, int numTrials, double maxPoints,
+    int minThreadCount, int maxThreadCount,
+    void (*ref)(Graph, T*), void (*stu)(Graph, T*),
+    bool (*check)(Graph, T*, T*),
+    bool runRef, bool runStu,
+    std::ostream& timing) {
+
+  timing << std::left << std::setw(COL_SIZE) << "Threads";
+  timing << std::left << std::setw(COL_SIZE) << "Ref. Time";
+  timing << std::left << std::setw(COL_SIZE) << "Ref. Speedup";
+  if (runStu) {
+    timing << std::left << std::setw(COL_SIZE) << "Your Time";
+    timing << std::left << std::setw(COL_SIZE) << "Your Speedup";
+  }
+  timing << std::endl;
+  sep(timing, '-', 75);
+
+  std::cout << std::left << std::setw(COL_SIZE) << "Threads";
+  std::cout << std::left << std::setw(COL_SIZE) << "Ref. Time";
+  std::cout << std::left << std::setw(COL_SIZE) << "Ref. Speedup";
+  if (runStu) {
+    std::cout << std::left << std::setw(COL_SIZE) << "Your Time";
+    std::cout << std::left << std::setw(COL_SIZE) << "Your Speedup";
+  }
+  std::cout << std::endl;
+  sep(std::cout, '-', 75);
+
   using namespace std::chrono;
   typedef std::chrono::high_resolution_clock Clock;
   typedef std::chrono::duration<double> dsec;
 
-  int colSize = 15;
   int precision = 4;
-
-  /* Transfer graph data to device */
-  #ifdef RUN_MIC
-  int num_edges = graph->num_edges;
-  int num_nodes = graph->num_nodes;
-
-  int* outgoing_starts = graph->outgoing_starts;
-  int* outgoing_edges = graph->outgoing_edges;
-
-  int* incoming_starts = graph->incoming_starts;
-  int* incoming_edges = graph->incoming_edges;
-  #endif
-
-  #pragma offload_transfer target(mic: device) \
-        in(outgoing_starts : length(graph->num_nodes) ALLOC) \
-        in(outgoing_edges : length(graph->num_edges) ALLOC)  \
-        in(incoming_starts : length(graph->num_nodes) ALLOC) \
-        in(incoming_edges : length(graph->num_edges) ALLOC)
-
-
-  /* Run tests */
-  timing << std::left << std::setw(colSize) << "Threads";
-  timing << std::left << std::setw(colSize) << "Ref. Time";
-  timing << std::left << std::setw(colSize) << "Ref. Speedup";
-  timing << std::left << std::setw(colSize) << "Your Time";
-  timing << std::left << std::setw(colSize) << "Your Speedup";
-  timing << std::endl;
-  sep(timing, '-', 75);
-
-  std::cout << std::left << std::setw(colSize) << "Threads";
-  std::cout << std::left << std::setw(colSize) << "Ref. Time";
-  std::cout << std::left << std::setw(colSize) << "Ref. Speedup";
-  std::cout << std::left << std::setw(colSize) << "Your Time";
-  std::cout << std::left << std::setw(colSize) << "Your Speedup";
-  std::cout << std::endl;
-  sep(std::cout, '-', 75);
-
-
-  T* refSolution = new T [graph->num_nodes];
-  T* stuSolution = new T [graph->num_nodes];
+  T* refSolution = new T [g->num_nodes];
+  T* stuSolution = new T [g->num_nodes];
 
   bool firstTimeDone = false;
   double refOneThreadTime = 0;
@@ -127,58 +274,30 @@ double timeMic
     double refTime = 0;
     double stuTime = 0;
     for (int i = 0; i < numTrials; i++) {
-
       #pragma offload target(mic: device)
       omp_set_num_threads(threads);
+      
+      if (runRef) {
+        auto refStart = Clock::now();
+        ref(g, refSolution);
+        refTime += duration_cast<dsec>(Clock::now() - refStart).count();
+      } else {
+        refTime += refTimeTable[APP][getGraphIndex(g)][getThreadIndex(threads)];
+      }
 
-      auto refStart = Clock::now();
-      #pragma offload target(mic: device) \
-        in(num_edges) \
-        in(num_nodes) \
-        nocopy(outgoing_starts : length(graph->num_nodes) REUSE) \
-        nocopy(outgoing_edges : length(graph->num_edges) REUSE)  \
-        nocopy(incoming_starts : length(graph->num_nodes) REUSE) \
-        nocopy(incoming_edges : length(graph->num_edges) REUSE)  \
-        out(refSolution : length(graph->num_nodes))
-      #ifdef RUN_MIC
-      ref
-        ( num_nodes, outgoing_starts, outgoing_edges
-        , incoming_starts, incoming_edges, num_edges
-        , refSolution
-        // , args...
-        );
-      #else
-      ref(graph, refSolution);
-      #endif
-      refTime += duration_cast<dsec>(Clock::now() - refStart).count();
+      if (runStu) {
+        auto stuStart = Clock::now();
+        stu(g, stuSolution);
+        stuTime += duration_cast<dsec>(Clock::now() - stuStart).count();
+      } else {
+        stuTime += 1;
+      }
 
-// Don't run student's solution if compiled with REF_ONLY
-#ifdef REF_ONLY
-      stuTime += 1;
-#else
-      auto stuStart = Clock::now();
-      #pragma offload target(mic: device) \
-        in(num_edges) \
-        in(num_nodes) \
-        nocopy(outgoing_starts : length(graph->num_nodes) REUSE) \
-        nocopy(outgoing_edges : length(graph->num_edges) REUSE)  \
-        nocopy(incoming_starts : length(graph->num_nodes) REUSE) \
-        nocopy(incoming_edges : length(graph->num_edges) REUSE)  \
-        out(stuSolution : length(graph->num_nodes))
-      #ifdef RUN_MIC
-      stu
-        (num_nodes, outgoing_starts, outgoing_edges
-        , incoming_starts, incoming_edges, num_edges
-        , stuSolution
-        // , args...
-        );
-      #else
-      stu(graph, stuSolution);
-      #endif
-      stuTime += duration_cast<dsec>(Clock::now() - stuStart).count();
-
-      correct = correct && check(graph, refSolution, stuSolution);
-#endif /* REF_ONLY */
+      if (runRef && runStu) {
+        correct = correct && check(g, refSolution, stuSolution);
+        if (!correct)
+          break;
+      }
     }
 
     refTime /= numTrials;
@@ -197,26 +316,31 @@ double timeMic
     double stuSpeedup = stuOneThreadTime / stuTime;
 
     timing << std::right << std::setw(7) << threads;
-    timing << std::left << std::setw(colSize - 7) << "";
+    timing << std::left << std::setw(COL_SIZE - 7) << "";
     timing << std::setprecision(precision) << std::fixed;
-    timing << std::left << std::setw(colSize) << refTime;
+    timing << std::left << std::setw(COL_SIZE) << refTime;
     timing << std::setprecision(precision) << std::fixed;
-    timing << std::left << std::setw(colSize) << refSpeedup;
-    timing << std::setprecision(precision) << std::fixed;
-    timing << std::left << std::setw(colSize) << stuTime;
-    timing << std::setprecision(precision) << std::fixed;
-    timing << std::left << std::setw(colSize) << stuSpeedup;
+    timing << std::left << std::setw(COL_SIZE) << refSpeedup;
+    if (runStu) {
+      timing << std::setprecision(precision) << std::fixed;
+      timing << std::left << std::setw(COL_SIZE) << stuTime;
+      timing << std::setprecision(precision) << std::fixed;
+      timing << std::left << std::setw(COL_SIZE) << stuSpeedup;
+    }
     timing << std::endl;
+
     std::cout << std::right << std::setw(7) << threads;
-    std::cout << std::left << std::setw(colSize - 7) << "";
+    std::cout << std::left << std::setw(COL_SIZE - 7) << "";
     std::cout << std::setprecision(precision) << std::fixed;
-    std::cout << std::left << std::setw(colSize) << refTime;
+    std::cout << std::left << std::setw(COL_SIZE) << refTime;
     std::cout << std::setprecision(precision) << std::fixed;
-    std::cout << std::left << std::setw(colSize) << refSpeedup;
-    std::cout << std::setprecision(precision) << std::fixed;
-    std::cout << std::left << std::setw(colSize) << stuTime;
-    std::cout << std::setprecision(precision) << std::fixed;
-    std::cout << std::left << std::setw(colSize) << stuSpeedup;
+    std::cout << std::left << std::setw(COL_SIZE) << refSpeedup;
+    if (runStu) {
+      std::cout << std::setprecision(precision) << std::fixed;
+      std::cout << std::left << std::setw(COL_SIZE) << stuTime;
+      std::cout << std::setprecision(precision) << std::fixed;
+      std::cout << std::left << std::setw(COL_SIZE) << stuSpeedup;
+    }
     std::cout << std::endl;
 
     if (threads == maxThreadCount)
@@ -224,13 +348,6 @@ double timeMic
     
     threads = std::min(maxThreadCount, threads * 2);
   }
-
-  /* Free graph data */
-  #pragma offload_transfer target(mic: device) \
-        nocopy(outgoing_starts : length(graph->num_nodes) FREE) \
-        nocopy(outgoing_edges : length(graph->num_edges) FREE)  \
-        nocopy(incoming_starts : length(graph->num_nodes) FREE) \
-        nocopy(incoming_edges : length(graph->num_edges) FREE)
 
   delete[] refSolution;
   delete[] stuSolution;
@@ -261,14 +378,14 @@ double timeMic
   }
   sep(std::cout, '-', 75);
 
+#ifndef RUN_MIC
+  if (!runRef) {
+    timing << "WARNING: Reference time is based on MIC execution." << std::endl;
+    std::cout << "WARNING: Reference time is based on MIC execution." << std::endl;
+  }
+#endif
+
   return points;
 }
 
-#ifdef RUN_MIC
-  #define TIME_MIC(REF, STU, T, n) \
-    timeMic<decltype(&(MIC_WRAPPER(REF, T))), &(MIC_WRAPPER(REF, T)), &(MIC_WRAPPER(STU, T)), T, (n)>
-#else
-  #define TIME_MIC(REF, STU, T, n) timeMic<decltype(&REF), &REF, &STU, T, (n)>
-#endif
-
-#endif
+#endif /* __GRADE_H__ */
