@@ -17,6 +17,7 @@
 #define YESRETURN 1
 #define NORETURN 0
 
+//comment
 
 class RadiiUpdate 
 {
