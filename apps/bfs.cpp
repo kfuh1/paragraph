@@ -8,8 +8,6 @@
 
 #define NA -1
 
-// comment
-
 class Bfs
 {
   public:
@@ -48,14 +46,30 @@ void bfs(graph *g, int *solution) {
   addVertex(frontier, 0);
 
   VertexSet *newFrontier;
+/*
+  int n = g->num_nodes;
 
+    // Helper function to round up to a power of 2. 
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
 
+  int* results = (int*)malloc(sizeof(int) * num_nodes(g));
+  int* scanResults = (int*)malloc(n * sizeof(int));
+  */
   while (frontier->size != 0) {
+    //newFrontier = edgeMap<Bfs>(g, frontier, f, results, scanResults);
     newFrontier = edgeMap<Bfs>(g, frontier, f);
     freeVertexSet(frontier);
     frontier = newFrontier;
     f.currentDistance++;
   }
 
+  //free(results);
+  //free(scanResults);
   freeVertexSet(frontier);
 }

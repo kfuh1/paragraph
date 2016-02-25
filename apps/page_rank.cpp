@@ -11,8 +11,6 @@
 
 #include <utility>
 
-//comment
-
 template <class T>
 struct State
 {
@@ -105,12 +103,27 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
   for (int i = 0; i < numNodes; i++) {
     addVertex(frontier, i);
   }
+/*
+  int n = g->num_nodes;
 
-  
+    // Helper function to round up to a power of 2. 
+
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+
+  int* results = (int*)malloc(sizeof(int) * numNodes);
+  int* scanResults = (int*)malloc(n * sizeof(int));
+  */
   float error = INFINITY;
   while (error > convergence) {
     Local<float> local(g, s.pcurr, s.pnext, s.diff, damping);
 
+    //VertexSet* frontier2 = edgeMap<State<float> >(g, frontier, s, results, scanResults);
     VertexSet* frontier2 = edgeMap<State<float> >(g, frontier, s);
     VertexSet* frontier3 = vertexMap<Local<float> >(frontier2, local);
 
@@ -121,6 +134,8 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
     error = s.getError();
     std::swap(s.pcurr, s.pnext);
   }
+  //free(results);
+  //free(scanResults);
   freeVertexSet(frontier);
   memcpy(solution, s.pcurr, sizeof(float) * numNodes);
 }

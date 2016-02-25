@@ -17,7 +17,6 @@
 #define YESRETURN 1
 #define NORETURN 0
 
-// comment
 
 class RadiiUpdate 
 {
@@ -186,14 +185,12 @@ void kBFS(graph *g, int *distField) {
 
   VertexSet *newFrontier;
 
-
-  
-
   while (frontier->size > 0) {
     iter = iter + 1;
     RadiiUpdate ru(visited, nextVisited, radii, iter);
-    newFrontier = edgeMap(g, frontier, ru);
+    //newFrontier = edgeMap(g, frontier, ru, results, scanResults);
 
+    newFrontier = edgeMap(g, frontier, ru);
     freeVertexSet(frontier);
     frontier = newFrontier;
 

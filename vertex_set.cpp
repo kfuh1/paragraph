@@ -4,9 +4,8 @@
 #include <string.h>
 #include <cassert>
 #include <stdio.h>
+#include <omp.h>
 #include "mic.h"
-
-// comment
 
 /**
  * Creates an empty VertexSet with the given type and capacity.
@@ -99,42 +98,71 @@ void convertToSparse(VertexSet *set){
   if(set->type == SPARSE){
     return;
   }
-  int idx = 0;
-  for(int i = 0; i < set->numNodes && idx < set->size; i++){
+  int numNodes = set->numNodes;
+  int* scanResults = (int*) malloc(sizeof(int) * numNodes);
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numNodes; i++){
+    scanResults[i] = set->verticesDense[i];
+  }
+
+  scan(numNodes, scanResults);
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numNodes; i++){
     if(set->verticesDense[i]){
+      //-1 because we did inclusive scan
+      int idx = scanResults[i] - 1;
       set->verticesSparse[idx] = i;
-      idx++;
     }
   }
+  free(scanResults);
 }
 
+//our histoscan
 void scan(int length, int* output)
 {
-    int N = length;
-
-    // upsweep phase.
-    for (int twod = 1; twod < N; twod*=2) {
-      int twod1 = twod*2;
-
-      #pragma omp parallel for schedule(static)
-      for (int i = 0; i < N; i += twod1) {
-          output[i+twod1-1] += output[i+twod-1];
+  int numBins = omp_get_max_threads();
+  int* bins = (int*)malloc(sizeof(int) * numBins);
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numBins; i++){
+    bins[i] = 0;
+  }
+ 
+  int binSize = (length + numBins - 1) / numBins;
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numBins; i++){
+    int startIdx = i * binSize;
+    int sum = 0;
+    for(int j = startIdx; j < startIdx + binSize; j++){
+      if(j >= length){
+        break;
       }
+      sum += output[j];
     }
-    
-    output[N-1] = 0;
-    
-    // downsweep phase.
-    for (int twod = N/2; twod >= 1; twod /= 2) {
-      int twod1 = twod*2;
+    bins[i] = sum;
+  }
+  
+  for(int i = 1; i < numBins; i++){
+    bins[i] += bins[i-1];
+  }
 
-      #pragma omp parallel for schedule(static)
-      for (int i = 0; i < N; i += twod1) {
-          int t = output[i+twod-1];
-          output[i+twod-1] = output[i+twod1-1];
-          output[i+twod1-1] += t; // change twod1 to twod to reverse prefix sum.
-      }
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numBins; i++){
+    int currSum = 0;
+    if(i > 0){
+      currSum = bins[i-1];
     }
+    int startIdx = i * binSize;
+    for(int j = startIdx; j < startIdx + binSize; j++){
+      if(j >= length){
+        break;
+      }
+      currSum += output[j];
+      output[j] = currSum;
+    }
+  }
+
+  free(bins);
+
 }
 
 /**
