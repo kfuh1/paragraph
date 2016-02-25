@@ -95,7 +95,7 @@ void convertToDense(VertexSet *set){
 }
 
 void convertToSparse(VertexSet *set){
-  if(set->type == SPARSE){
+  /*if(set->type == SPARSE){
     return;
   }
   int idx = 0;
@@ -104,8 +104,8 @@ void convertToSparse(VertexSet *set){
       set->verticesSparse[idx] = i;
       idx++;
     }
-  }
-  /*if(set->type == SPARSE){
+  }*/
+  if(set->type == SPARSE){
     return;
   }
   int numNodes = set->numNodes;
@@ -124,7 +124,7 @@ void convertToSparse(VertexSet *set){
       set->verticesSparse[idx] = i;
     }
   }
-  free(scanResults);*/
+  free(scanResults);
 }
 
 //our histoscan
