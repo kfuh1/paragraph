@@ -121,5 +121,9 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
     std::swap(s.pcurr, s.pnext);
   }
   freeVertexSet(frontier);
-  memcpy(solution, s.pcurr, sizeof(float) * numNodes);
+
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < numNodes; i++) {
+    solution[i] = s.pcurr[i];
+  }
 }
