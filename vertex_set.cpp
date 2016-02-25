@@ -98,6 +98,16 @@ void convertToSparse(VertexSet *set){
   if(set->type == SPARSE){
     return;
   }
+  int idx = 0;
+  for(int i = 0; i < set->numNodes && idx < set->size; i++){
+    if(set->verticesDense[i]){
+      set->verticesSparse[idx] = i;
+      idx++;
+    }
+  }
+  /*if(set->type == SPARSE){
+    return;
+  }
   int numNodes = set->numNodes;
   int* scanResults = (int*) malloc(sizeof(int) * numNodes);
   #pragma omp parallel for schedule(static)
@@ -114,7 +124,7 @@ void convertToSparse(VertexSet *set){
       set->verticesSparse[idx] = i;
     }
   }
-  free(scanResults);
+  free(scanResults);*/
 }
 
 //our histoscan

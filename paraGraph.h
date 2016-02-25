@@ -73,7 +73,8 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   } 
 
   //Bottom up
-  if(outSize > numNodes / (16 * omp_get_num_threads())){
+  if(outSize > numNodes / (16 * omp_get_max_threads())){
+  //if(true){
     set = newVertexSet(DENSE, numNodes, numNodes);
     convertToDense(u); 
 
