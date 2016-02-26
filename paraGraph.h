@@ -66,19 +66,16 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     results[i] = 0;
   }
 
-  int threshold = 4 * omp_get_max_threads();
+  int threshold = 4;//16 * omp_get_max_threads();
   //Bottom up
   if(outSize > numNodes / threshold){
-  //if(false){
+    int total = 0;
     //printf("bottom up\n");
-    set = newVertexSet(DENSE, numNodes, numNodes);
     convertToDense(u);
     
-    #pragma omp parallel for schedule(dynamic, 256)
+    #pragma omp parallel for reduction(+:total) schedule(dynamic, 256)
     for(int i = 0; i < numNodes; i++){
-      /*if(!f.cond(i)){
-        continue;
-      } */
+      int count = 0;
       const Vertex* start = incoming_begin(g,i);
       const Vertex* end = incoming_end(g,i);
 
@@ -86,26 +83,29 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
         if(!f.cond(i)){
           break;
         }
-        if(u->verticesDense[*v] && f.update(*v, i)){
+        if(u->verticesDense[*v] && f.update(*v, i) && !results[i]){
           results[i] = 1;
-          //break;
+          count++;
         }
       }  
+      total += count;
     }
+    set = newVertexSet(DENSE, total, numNodes);
     //no critical section needed because dense rep
     //means all threads writing to their own space
     #pragma omp parallel for schedule(static)
     for(int i = 0; i < numNodes; i++){
-      if(results[i] == 1){
-        addVertex(set, i);
-      }
+      //if(results[i] == 1){
+      set->verticesDense[i] = (results[i] == 1);
+      //}
     }
+    set->size = total;
   }
   //Top down
   else{
     //printf("top down");
     int* scanResults = (int*) malloc(sizeof(int) * numNodes);
-    int count = 0;
+    int total = 0;
     //printf("before\n");
     convertToSparse(u);
 
@@ -115,8 +115,9 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     }
 
     //printf("size %d\n", size);
-    #pragma omp parallel for schedule(dynamic, 256)
+    #pragma omp parallel for reduction(+:total) schedule(dynamic,256)
     for(int i = 0; i < size; i++){
+      int count = 0;
       Vertex src = u->verticesSparse[i];
       const Vertex* start = outgoing_begin(g, src);
       const Vertex* end = outgoing_end(g, src);
@@ -126,14 +127,16 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
           //printf("vertex %d\n", *v);
           results[*v] = 1;
           scanResults[*v] = 1;
-          #pragma omp atomic
+          //#pragma omp atomic
+          //total++;
           count++;
         }
       }
+      total += count;
     }
-    set = newVertexSet(SPARSE, count, numNodes);
+    set = newVertexSet(SPARSE, total, numNodes);
     scan(numNodes, scanResults);
-    //printf("count %d\n", count);
+    
     #pragma omp parallel for schedule(static)
     for(int i = 0; i < numNodes; i++){
       if(results[i]){
@@ -144,7 +147,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     }
     
     
-    set->size = count;
+    set->size = total;
     free(scanResults);
   }
   free(results);
@@ -203,6 +206,7 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
     }
   }
   else{
+    #pragma omp parallel for schedule(static)
     for(int i = 0; i < u->size; i++){
       if(f(u->verticesSparse[i])){
         addVertex(set, u->verticesSparse[i]);
