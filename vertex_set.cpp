@@ -209,16 +209,62 @@ void scan(int length, int* output){
   //printf("scan end\n");
 }
 
+void unionHelper(VertexSet *set, bool* markers){
+  if(set->type == DENSE){
+    for(int i = 0; i < set->numNodes; i++){
+      //if vertex is already marked as true, don't update
+      if(set->verticesDense[i]){
+        markers[i] = true;
+      }
+    }
+  }
+  else{
+    for(int i = 0; i < set->size; i++){
+      markers[set->verticesSparse[i]] = true;
+    }
+  }
+}
+
 /**
  * Returns the union of sets u and v. Destroys u and v.
+ * Always returns a dense set
  */
 VertexSet* vertexUnion(VertexSet *u, VertexSet* v)
 {
-  // TODO: Implement
+  bool* markers = (bool*) malloc(sizeof(bool) * u->numNodes);
 
-  // STUDENTS WILL ONLY NEED TO IMPLEMENT THIS FUNCTION IN PART 3 OF
-  // THE ASSIGNMENT
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < u->numNodes; i++){
+    markers[i] = false;
+  }
 
-  return NULL;
+  //make u and v fill out the markers array to get elems in union
+  unionHelper(u, markers);
+  unionHelper(v, markers);
+
+  //get size of union
+  int total = 0;
+  #pragma omp parallel for reduction(+:total) schedule(static)
+  for(int i = 0; i < u->numNodes; i++){
+    int count = 0;
+    if(markers[i]){
+      count = 1;
+    }
+    total += count;
+  }
+  VertexSet* set = newVertexSet(DENSE, total, u->numNodes);
+
+  //fill out new set
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < u->numNodes; i++){
+    set->verticesDense[i] = markers[i];
+  }
+  set->size = total;
+  //printf("size %d, %d\n", u->size, v->size);
+  //printf("total %d\n", total);
+  free(markers);
+  freeVertexSet(u);
+  freeVertexSet(v);
+  return set;
 }
 

@@ -1,30 +1,44 @@
+#include <stdlib.h>
 #include "paraGraph.h"
 #include "vertex_set.h"
 #include "graph.h"
 
 #define NA -1
 
-class GraphDecomposition
+class CircleUpdate
 {
   public:
-    GraphDecomposition(Graph g, int* decomp, int maxId){
+    int* decomp;
+    bool* updated;
+
+    CircleUpdate(int* decomp, bool* updated, int numNodes) : decomp(decomp), updated(updated)
+    {
       #pragma omp parallel for schedule(static)
-      for(int i = 0; i < num_nodes(g); i++){
-        decomp[i] = NA;
+      for(int i = 0; i < numNodes; i++){
+        updated[i] = false;
       }
-      decomp[maxId] = maxId;
-    }
+    };
     bool update(Vertex src, Vertex dst){
+      bool result = false;
+      #pragma omp critical
       if(decomp[dst] == NA){
         decomp[dst] = decomp[src];
+        updated[dst] = true;
+        result = true;
       }
-      return false;
+      else{
+        if(updated[dst] && decomp[src] < decomp[dst]){
+          decomp[dst] = decomp[src];
+          result = true;
+        }
+      }
+      return result;
     }
     bool cond(Vertex v){
-      return decomp[v] == NA;
+      return true;
     }
 
-}
+};
 
 class Visited
 {
@@ -34,12 +48,17 @@ class Visited
     int maxVal;
     int iter;
     Visited(int* decomp, int* dus, int maxVal, int iter) :
-        decomp(decomp), dus(dus), maxVal(maxVal), iter(iter);
+        decomp(decomp), dus(dus), maxVal(maxVal), iter(iter) {};
 
     bool operator()(Vertex v){
-      return decomp[v] == NA && iter > maxVal - dus[v];
+      bool result = false;
+      if(decomp[v] == NA && iter > maxVal - dus[v]){
+        decomp[v] = v;
+        result = true;
+      }
+      return result;
     }
-}
+};
 
 /**
 	Given a graph, a deltamu per node, the max deltamu value, and the id
@@ -53,73 +72,43 @@ void decompose(graph *g, int *decomp, int* dus, int maxVal, int maxId) {
   int numNodes = num_nodes(g);
   VertexSet* frontier = newVertexSet(SPARSE, 1, numNodes);
   
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numNodes; i++){
+    decomp[i] = NA;
+  }
+  decomp[maxId] = maxId;
+
   addVertex(frontier, maxId);
 
   int iter = 0;
-  #pragma omp parallel for schedule(static)
+
+  //need this to pass into vertexMap when we go through and look
+  //for vertices that need to be visited - need to have all vertices
+  VertexSet* graphSet = newVertexSet(DENSE, numNodes, numNodes);
   for(int i = 0; i < numNodes; i++){
-    decomp[i] = -1;
+    graphSet->verticesDense[i] = true;
   }
+  graphSet->size = numNodes;
 
-  //circle center of first thing is itself
-  decomp[maxId] = maxId;
 
-  //parents is used to keep track of who found the vertex in order
-  //to figure out the smallest circle center in an interation
-  Vertex* parents = (Vertex*) malloc(sizeof(Vertex*) * numNodes);
-  #pragma omp parallel for schedule(static)
-  for(int i = 0; i < numNodes; i++){
-    parents[i] = -1;
-  }
-
-  parents[maxId] = maxId;
-
-  //keeps track of which vertices are in current frontier for quick lookup
-  bool* inFrontier = (bool*) malloc(sizeof(bool) * numNodes);
-
-  VertexSet* newFrontier;
+  VertexSet* newFrontier = NULL;
+  bool* updated = (bool*) malloc(sizeof(bool) * numNodes);
   while(frontier->size > 0){
-    newFrontier = newVertexSet(SPARSE, numNodes, numNodes);
-    #pragma omp parallel for schedule(static)
-    for(int i = 0; i < numNodes; i++){
-      inFrontier[i] = false;
-    }
-    //how large should this new frontier be?
-    for(int i = 0; i < frontier->size; i++){
-      Vertex src = frontier->verticesSparse[i];
-      inFrontier[src] = true;
-      const Vertex* start = outgoing_begin(g,src);
-      const Vertex* end = outgoing_end(g,src);
-      for(const Vertex* v = start; v < end; v++){
-        //if vertex has not been claimed yet
-        if(decomp[*v] == -1){
-          parents[*v] = src;
-          decomp[*v] = decomp[src];
-          addVertex(newFrontier, *v);
-        }
-        else{
-          //change the circle center to the smaller center
-          if(decomp[src] < decomp[parents[*v]] && inFrontier[parents[*v]]){
-            parents[*v] = src;
-            decomp[*v] = decomp[src];
-          }
-        }
-      }
-    }
-
+    CircleUpdate cu (decomp, updated, numNodes);
+    VertexSet* partialSet1 = edgeMap(g, frontier, cu);
     iter++;
+    
+    Visited v(decomp, dus, maxVal, iter);
 
-    for(int i = 0; i < numNodes; i++){
-      if(decomp[i] == -1 && iter > maxVal - dus[i]){
-          addVertex(newFrontier, i);
-          decomp[i] = i;
-      }
-    }
+    VertexSet* partialSet2 = vertexMap(graphSet, v, true);
+
+    newFrontier = vertexUnion(partialSet1, partialSet2);
+
     freeVertexSet(frontier); 
     frontier = newFrontier;
   }
+  free(updated);
   if(newFrontier != NULL){
     freeVertexSet(newFrontier);
   }
-  free(parents);
 }
