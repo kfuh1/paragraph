@@ -2,6 +2,45 @@
 #include "vertex_set.h"
 #include "graph.h"
 
+#define NA -1
+
+class GraphDecomposition
+{
+  public:
+    GraphDecomposition(Graph g, int* decomp, int maxId){
+      #pragma omp parallel for schedule(static)
+      for(int i = 0; i < num_nodes(g); i++){
+        decomp[i] = NA;
+      }
+      decomp[maxId] = maxId;
+    }
+    bool update(Vertex src, Vertex dst){
+      if(decomp[dst] == NA){
+        decomp[dst] = decomp[src];
+      }
+      return false;
+    }
+    bool cond(Vertex v){
+      return decomp[v] == NA;
+    }
+
+}
+
+class Visited
+{
+  public:
+    int* decomp;
+    int* dus;
+    int maxVal;
+    int iter;
+    Visited(int* decomp, int* dus, int maxVal, int iter) :
+        decomp(decomp), dus(dus), maxVal(maxVal), iter(iter);
+
+    bool operator()(Vertex v){
+      return decomp[v] == NA && iter > maxVal - dus[v];
+    }
+}
+
 /**
 	Given a graph, a deltamu per node, the max deltamu value, and the id
 	of the node with the max deltamu, decompose the graph into clusters. 
