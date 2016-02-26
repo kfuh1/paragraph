@@ -169,7 +169,8 @@ void kBFS(graph *g, int *distField) {
   for (int i = 0; i < numSources; i++) 
     S[i] = (std::rand()/(float)RAND_MAX) * g->num_nodes;
 
-  VertexSet* frontier = newVertexSet(SPARSE, numSources, g->num_nodes);
+  VertexSet* frontier = newVertexSet(DENSE, numSources, g->num_nodes);
+  #pragma omp parallel for schedule(static)
   for (int i = 0; i < numSources; i++) {
     addVertex(frontier, S[i]);
   }

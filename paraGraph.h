@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <omp.h>
 #include "vertex_set.h"
 #include "graph.h"
 
@@ -65,14 +66,15 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     results[i] = 0;
   }
 
+  int threshold = 4 * omp_get_max_threads();
   //Bottom up
-  if(outSize > numNodes / 2){
+  if(outSize > numNodes / threshold){
   //if(false){
     //printf("bottom up\n");
     set = newVertexSet(DENSE, numNodes, numNodes);
     convertToDense(u);
     
-    #pragma omp parallel for schedule(dynamic, 128)
+    #pragma omp parallel for schedule(dynamic, 256)
     for(int i = 0; i < numNodes; i++){
       if(!f.cond(i)){
         continue;
@@ -109,7 +111,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     }
 
     //printf("size %d\n", size);
-    #pragma omp parallel for schedule(dynamic, 128)
+    #pragma omp parallel for schedule(dynamic, 256)
     for(int i = 0; i < size; i++){
       Vertex src = u->verticesSparse[i];
       const Vertex* start = outgoing_begin(g, src);

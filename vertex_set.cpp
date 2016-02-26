@@ -25,12 +25,18 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
   vertexSet->numNodes = numNodes;
 
   //depending on representation, allocate correct space
-  vertexSet->verticesDense = (bool*)malloc(sizeof(bool) * numNodes);
-  #pragma omp parallel for schedule(static)
-  for(int i = 0; i < numNodes; i++){
-    vertexSet->verticesDense[i] = false;
+  if(type == DENSE){
+    vertexSet->verticesDense = (bool*)malloc(sizeof(bool) * numNodes);
+    #pragma omp parallel for schedule(static)
+    for(int i = 0; i < numNodes; i++){
+      vertexSet->verticesDense[i] = false;
+    }
+    vertexSet->verticesSparse = NULL;
   }
-  vertexSet->verticesSparse = (Vertex*)malloc(sizeof(Vertex) * capacity);
+  else{
+    vertexSet->verticesDense = NULL;
+    vertexSet->verticesSparse = (int*) malloc(sizeof(int) * capacity);
+  }
   /*#pragma omp parallel for schedule(static)
   for(int i = 0; i < capacity; i++){
     vertexSet->verticesSparse[i] = -1;
@@ -46,8 +52,12 @@ void freeVertexSet(VertexSet *set)
   if(set == NULL){
     return;
   }
-  free(set->verticesDense);
-  free(set->verticesSparse);
+  if(set->verticesDense != NULL){
+    free(set->verticesDense);
+  }
+  if(set->verticesSparse != NULL){
+    free(set->verticesSparse);
+  }
   free(set);
 }
 
@@ -103,6 +113,7 @@ void convertToDense(VertexSet *set){
     return;
   }
   set->type = DENSE;
+  set->verticesDense = (bool*) malloc(sizeof(bool) * set->numNodes);
   #pragma omp parallel for schedule(static)
   for(int i = 0; i < set->numNodes; i++){
     set->verticesDense[i] = false;
@@ -123,11 +134,11 @@ void convertToSparse(VertexSet *set){
   int numNodes = set->numNodes;
   //printf("%d\n", numNodes);
   int* scanResults = (int*) malloc(sizeof(int) * numNodes);
-  
-  #pragma omp parallel for schedule(static)
+  set->verticesSparse = (int*) malloc(sizeof(int) * set->size);
+  /*#pragma omp parallel for schedule(static)
   for(int i = 0; i < set->size; i++){
     set->verticesSparse[i] = -1;
-  }
+  }*/
 
   #pragma omp parallel for schedule(static)
   for(int i = 0; i < numNodes; i++){
