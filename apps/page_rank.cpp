@@ -11,8 +11,6 @@
 
 #include <utility>
 
-// comment
-
 template <class T>
 struct State
 {
@@ -102,10 +100,11 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
   State<float> s(g, damping, convergence);
 
   VertexSet* frontier = newVertexSet(DENSE, numNodes, numNodes);
+  #pragma omp parallel for schedule(static)
   for (int i = 0; i < numNodes; i++) {
     addVertex(frontier, i);
   }
-  
+
   float error = INFINITY;
   while (error > convergence) {
     Local<float> local(g, s.pcurr, s.pnext, s.diff, damping);
@@ -120,6 +119,7 @@ void pageRank(Graph g, float* solution, float damping, float convergence)
     error = s.getError();
     std::swap(s.pcurr, s.pnext);
   }
+
   freeVertexSet(frontier);
 
   #pragma omp parallel for schedule(static)

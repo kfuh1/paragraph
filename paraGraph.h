@@ -4,14 +4,11 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <stdio.h>
 #include "vertex_set.h"
 #include "graph.h"
 
 #include "mic.h"
-
-#include <stdio.h>
-#include <omp.h>
 
 /*
  * edgeMap --
@@ -39,114 +36,115 @@ template <class F>
 static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     bool removeDuplicates=true)
 {
-  // TODO: Implement
+  //printf("edgemap %d\n", u->numNodes);
   int numNodes = u->numNodes;
   int size = u->size;
   int outSize = 0;
-
-  int* results = (int *)malloc(sizeof(int) * numNodes);
-  int* scanResults = (int*)malloc(numNodes * sizeof(int));
-
-  //get number of outgoing edges
+  //stores the results of applying functions on vertices
+  //and scanning those results
+  int* results = (int*) malloc(sizeof(int) * numNodes);
+  //get number of outgoing edges to be used for top down - bottom up heuristic
   if(u->type == DENSE){
-    #pragma omp parallel for reduction(+:outSize) schedule(static)
+    #pragma omp parallel for reduction(+:outSize)
     for(int i = 0; i < numNodes; i++){
       if(u->verticesDense[i]){
-        int nodeOutSize = outgoing_size(g,i);
-        outSize += nodeOutSize; 
+        outSize += outgoing_size(g,i);
       }
     }
   }
   else{
-    #pragma omp parallel for reduction(+:outSize) schedule(static)
+    #pragma omp parallel for reduction(+:outSize)
     for(int i = 0; i < size; i++){
-      int nodeOutSize = outgoing_size(g, u->verticesSparse[i]);
-      outSize += nodeOutSize;
+      outSize += outgoing_size(g, u->verticesSparse[i]);
     }
   }
-
-
   VertexSet* set;
+  //zero out results to make sure clean before we use
   #pragma omp parallel for schedule(static)
-  for(int i = 0; i < numNodes; i++){
+  for(int i = 0; i < u->numNodes; i++){
     results[i] = 0;
-  } 
+  }
 
   //Bottom up
-  if(outSize > numNodes / (16 * omp_get_max_threads())){
-  //if(true){
+  if(outSize > numNodes / 2){
+  //if(false){
+    //printf("bottom up\n");
     set = newVertexSet(DENSE, numNodes, numNodes);
-    convertToDense(u); 
-
-    //mark off the vertices in results that should be added to the set
-    //this will ensure no duplicates are added in the following loop
-    #pragma omp parallel for schedule(dynamic, 256) 
-    for(int i = 0; i < numNodes; i++){ 
+    convertToDense(u);
+    
+    #pragma omp parallel for schedule(dynamic, 128)
+    for(int i = 0; i < numNodes; i++){
       if(!f.cond(i)){
         continue;
-      }     
-      const Vertex* start = incoming_begin(g, i);
-      const Vertex* end = incoming_end(g, i);
+      } 
+      const Vertex* start = incoming_begin(g,i);
+      const Vertex* end = incoming_end(g,i);
 
       for(const Vertex* v = start; v < end; v++){
         if(u->verticesDense[*v] && f.update(*v, i)){
           results[i] = 1;
         }
-      }
+      }  
     }
-    //no need to make critical
+    //no critical section needed because dense rep
+    //means all threads writing to their own space
     #pragma omp parallel for schedule(static)
     for(int i = 0; i < numNodes; i++){
-      if(results[i]){
+      if(results[i] == 1){
         addVertex(set, i);
       }
     }
   }
   //Top down
   else{
-    int count = 0; 
+    //printf("top down");
+    int* scanResults = (int*) malloc(sizeof(int) * numNodes);
+    int count = 0;
+    //printf("before\n");
     convertToSparse(u);
-    #pragma omp parallel for schedule(dynamic, 256)
-    for(int i = 0; i < u->size; i++){
+
+    #pragma omp parallel for schedule(static)
+    for(int i = 0; i < numNodes; i++){
+      scanResults[i] = 0;
+    }
+
+    //printf("size %d\n", size);
+    #pragma omp parallel for schedule(dynamic, 128)
+    for(int i = 0; i < size; i++){
       Vertex src = u->verticesSparse[i];
       const Vertex* start = outgoing_begin(g, src);
       const Vertex* end = outgoing_end(g, src);
 
       for(const Vertex* v = start; v < end; v++){
-        if(f.cond(*v) && f.update(src, *v)){
+        if(f.cond(*v) && f.update(src, *v) && !results[*v]){
+          //printf("vertex %d\n", *v);
           results[*v] = 1;
+          scanResults[*v] = 1;
           #pragma omp atomic
           count++;
         }
       }
-      
     }
-
-
     set = newVertexSet(SPARSE, count, numNodes);
-
-    #pragma omp parallel for schedule(static)
-    for(int j = 0; j < numNodes; j++) {
-      scanResults[j] = results[j];
-    }
-    
     scan(numNodes, scanResults);
-     
+    //printf("count %d\n", count);
     #pragma omp parallel for schedule(static)
-    for(int i = 0; i < numNodes; i++) {
-      if(results[i]) {
-        int index = scanResults[i] - 1;
-        set->verticesSparse[index] = i;
+    for(int i = 0; i < numNodes; i++){
+      if(results[i]){
+        int idx = scanResults[i] - 1;
+        //printf("adding %d at %d\n", i, idx);
+        set->verticesSparse[idx] = i;
       }
     }
     
+    
     set->size = count;
-
+    free(scanResults);
   }
   free(results);
-  free(scanResults);
   return set;
 }
+
 
 
 /*
@@ -169,7 +167,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
 template <class F>
 static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
-  // TODO: Implement
+  //printf("vertexmap %d\n", u->numNodes);
   int numNodes = u->numNodes;
   if(!returnSet){
     if(u->type == DENSE){
@@ -187,11 +185,10 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
       }
     }
     return NULL;
-  }
-
-  VertexSet* set;
+  }  
+  //always create dense set
+  VertexSet* set = newVertexSet(DENSE, u->size, numNodes);
   if(u->type == DENSE){
-    set = newVertexSet(u->type, numNodes, numNodes);
     #pragma omp parallel for schedule(static)
     for(int i = 0; i < numNodes; i++){
       if(u->verticesDense[i] && f(i)){
@@ -200,17 +197,13 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
     }
   }
   else{
-    //make a guess at size of new set; can only be as big as original
-    set = newVertexSet(u->type, u->size, numNodes);
-    #pragma omp parallel for schedule(static)
     for(int i = 0; i < u->size; i++){
       if(f(u->verticesSparse[i])){
-        #pragma omp critical
         addVertex(set, u->verticesSparse[i]);
       }
     }
   }
-
+  //printf("vertexmap %d\n", set->numNodes);
   return set;
 }
 

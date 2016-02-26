@@ -13,8 +13,8 @@ typedef struct {
   int numNodes; // Number of nodes in the graph
   int capacity;
   VertexSetType type; 
-  Vertex* verticesSparse;
   bool* verticesDense;
+  Vertex* verticesSparse;
 } VertexSet;
 
 VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes);
