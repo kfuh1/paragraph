@@ -11,57 +11,76 @@
 
 **/
 void decompose(graph *g, int *decomp, int* dus, int maxVal, int maxId) {
-  /*VertexSet* frontier = newVertexSet(SPARSE, num_nodes(g), num_nodes(g));
+  int numNodes = num_nodes(g);
+  VertexSet* frontier = newVertexSet(SPARSE, 1, numNodes);
+  
   addVertex(frontier, maxId);
-  int iter = 0;
 
-  for(int i = 0; i < num_nodes(g); i++){
+  int iter = 0;
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numNodes; i++){
     decomp[i] = -1;
   }
 
+  //circle center of first thing is itself
   decomp[maxId] = maxId;
 
-  int* parents = (int*) malloc(sizeof(int*) * num_nodes(g));
-  int count = 0;
+  //parents is used to keep track of who found the vertex in order
+  //to figure out the smallest circle center in an interation
+  Vertex* parents = (Vertex*) malloc(sizeof(Vertex*) * numNodes);
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numNodes; i++){
+    parents[i] = -1;
+  }
+
+  parents[maxId] = maxId;
+
+  //keeps track of which vertices are in current frontier for quick lookup
+  bool* inFrontier = (bool*) malloc(sizeof(bool) * numNodes);
+
+  VertexSet* newFrontier;
   while(frontier->size > 0){
-    for(int i = 0; i < num_nodes(g); i++){
-      parents[i] = -1;
+    newFrontier = newVertexSet(SPARSE, numNodes, numNodes);
+    #pragma omp parallel for schedule(static)
+    for(int i = 0; i < numNodes; i++){
+      inFrontier[i] = false;
     }
-    //printf("%d\n", frontier->size);
+    //how large should this new frontier be?
     for(int i = 0; i < frontier->size; i++){
       Vertex src = frontier->verticesSparse[i];
+      inFrontier[src] = true;
       const Vertex* start = outgoing_begin(g,src);
       const Vertex* end = outgoing_end(g,src);
       for(const Vertex* v = start; v < end; v++){
+        //if vertex has not been claimed yet
         if(decomp[*v] == -1){
-          if(parents[*v] == -1){
+          parents[*v] = src;
+          decomp[*v] = decomp[src];
+          addVertex(newFrontier, *v);
+        }
+        else{
+          //change the circle center to the smaller center
+          if(decomp[src] < decomp[parents[*v]] && inFrontier[parents[*v]]){
             parents[*v] = src;
-          }
-          else if(parents[*v] > src){
-            parents[*v] = src;
-            
+            decomp[*v] = decomp[src];
           }
         }
-      }
-      removeVertex(frontier, src);
-    }
-    for(int i = 0; i < num_nodes(g); i++){
-      if(parents[i] != -1){
-        decomp[i] = parents[i];
       }
     }
 
     iter++;
 
-    for(int i = 0; i < num_nodes(g); i++){
-      if(decomp[i] == -1){
-        if(iter > maxVal - dus[i]){
-          addVertex(frontier, i);
+    for(int i = 0; i < numNodes; i++){
+      if(decomp[i] == -1 && iter > maxVal - dus[i]){
+          addVertex(newFrontier, i);
           decomp[i] = i;
-        }
       }
     }
-    
+    freeVertexSet(frontier); 
+    frontier = newFrontier;
   }
-  free(parents);*/
+  if(newFrontier != NULL){
+    freeVertexSet(newFrontier);
+  }
+  free(parents);
 }
