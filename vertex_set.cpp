@@ -96,12 +96,13 @@ void removeVertex(VertexSet *set, Vertex v)
   //never calling add vertex so no locks here
   else{
     for(int i = 0; i < set->size; i++){
-      if(set->verticesSparse[i] == 1){
+      if(set->verticesSparse[i] == v){
         //setting to -1 first will handle problem when vertex is last elem
         set->verticesSparse[i] = -1;
         //move the last element into the space where vertex was removed
         set->verticesSparse[i] = set->verticesSparse[set->size - 1]; 
         set->size -= 1;
+        break;
       }
     }
   }
