@@ -37,14 +37,17 @@ template <class F>
 static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     bool removeDuplicates=true)
 {
-  //printf("edgemap %d\n", u->numNodes);
   int numNodes = u->numNodes;
+  int numEdges = num_edges(g);
   int size = u->size;
   int outSize = 0;
+  
   //stores the results of applying functions on vertices
   //and scanning those results
   int* results = (int*) malloc(sizeof(int) * numNodes);
+
   //get number of outgoing edges to be used for top down - bottom up heuristic
+  //and determining chunk size
   if(u->type == DENSE){
     #pragma omp parallel for reduction(+:outSize)
     for(int i = 0; i < numNodes; i++){
@@ -59,21 +62,39 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
       outSize += outgoing_size(g, u->verticesSparse[i]);
     }
   }
+
   VertexSet* set;
   //zero out results to make sure clean before we use
   #pragma omp parallel for schedule(static)
   for(int i = 0; i < u->numNodes; i++){
     results[i] = 0;
   }
+  
+  //determining an appropriate chunk size based on the average number of edges
+  //per node
+  int chunkSize;
+  int avgEdgeFrontier = outSize / size;
+  int avgEdgeGraph = numEdges / numNodes;
 
-  int threshold = 16 * omp_get_max_threads();
+  //casing on chunk size based on the average number of edges per node
+  //compared to the average degree of a node in the graph
+  if (avgEdgeFrontier > avgEdgeGraph){
+    chunkSize = 512;
+  } else {
+    chunkSize = 128;
+  }
+  
+  //threshold for top down = bottom up heuristic
+  int threshold = 20;
+
   //Bottom up
-  if(outSize > numNodes / threshold){
+  if(outSize > numEdges / threshold){
     int total = 0;
-    //printf("bottom up\n");
+    
+    //dense representation for bottom up implementation
     convertToDense(u);
     
-    #pragma omp parallel for reduction(+:total) schedule(dynamic, 256)
+    #pragma omp parallel for reduction(+:total) schedule(dynamic, chunkSize)
     for(int i = 0; i < numNodes; i++){
       int count = 0;
       const Vertex* start = incoming_begin(g,i);
@@ -101,10 +122,10 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
   }
   //Top down
   else{
-    //printf("top down");
     int* scanResults = (int*) malloc(sizeof(int) * numNodes);
     int total = 0;
-    //printf("before\n");
+    
+    //concerting to sparse for top-down implementation
     convertToSparse(u);
 
     #pragma omp parallel for schedule(static)
@@ -112,8 +133,7 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
       scanResults[i] = 0;
     }
 
-    //printf("size %d\n", size);
-    #pragma omp parallel for reduction(+:total) schedule(dynamic,256)
+    #pragma omp parallel for reduction(+:total) schedule(dynamic,chunkSize)
     for(int i = 0; i < size; i++){
       int count = 0;
       Vertex src = u->verticesSparse[i];
@@ -130,6 +150,8 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
       total += count;
     }
     set = newVertexSet(SPARSE, total, numNodes);
+
+    //scanning in order to add to our sparse set in parallel
     scan(numNodes, scanResults);
     
     #pragma omp parallel for schedule(static)
@@ -139,7 +161,6 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
         set->verticesSparse[idx] = i;
       }
     }
-    
     
     set->size = total;
     free(scanResults);
@@ -170,7 +191,6 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
 template <class F>
 static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
 {
-  //printf("vertexmap %d\n", u->numNodes);
   int numNodes = u->numNodes;
   if(!returnSet){
     if(u->type == DENSE){
@@ -190,6 +210,12 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
     return NULL;
   }  
   bool* results = (bool*) malloc(sizeof(bool) * numNodes);
+
+  #pragma omp parallel for schedule(static)
+  for(int i = 0; i < numNodes; i++){
+    results[i] = false;
+  }
+
   //always create dense set
   VertexSet* set;
   int total = 0;
@@ -234,7 +260,6 @@ static VertexSet *vertexMap(VertexSet *u, F &f, bool returnSet=true)
     set->size = total;
   }
   free(results);
-  //printf("vertexmap %d\n", set->numNodes);
   return set;
 }
 
