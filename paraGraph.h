@@ -76,15 +76,19 @@ static VertexSet *edgeMap(Graph g, VertexSet *u, F &f,
     
     #pragma omp parallel for schedule(dynamic, 256)
     for(int i = 0; i < numNodes; i++){
-      if(!f.cond(i)){
+      /*if(!f.cond(i)){
         continue;
-      } 
+      } */
       const Vertex* start = incoming_begin(g,i);
       const Vertex* end = incoming_end(g,i);
 
       for(const Vertex* v = start; v < end; v++){
+        if(!f.cond(i)){
+          break;
+        }
         if(u->verticesDense[*v] && f.update(*v, i)){
           results[i] = 1;
+          //break;
         }
       }  
     }
