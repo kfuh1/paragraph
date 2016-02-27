@@ -17,7 +17,6 @@
  */
 VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
 {
-  //printf("newVertexSet %d\n", numNodes);
   VertexSet* vertexSet = (VertexSet*) malloc(sizeof(VertexSet));
   vertexSet->type = type;
   vertexSet->size = 0;
@@ -37,18 +36,12 @@ VertexSet *newVertexSet(VertexSetType type, int capacity, int numNodes)
     vertexSet->verticesDense = NULL;
     vertexSet->verticesSparse = (int*) malloc(sizeof(int) * capacity);
   }
-  /*#pragma omp parallel for schedule(static)
-  for(int i = 0; i < capacity; i++){
-    vertexSet->verticesSparse[i] = -1;
-  }*/
   
-  //printf("newVertexSetEnd %d\n", numNodes);
   return vertexSet;
 }
 
 void freeVertexSet(VertexSet *set)
 {
-  //printf("freeVertexSet %d\n", set->numNodes);
   if(set == NULL){
     return;
   }
@@ -63,7 +56,6 @@ void freeVertexSet(VertexSet *set)
 
 void addVertex(VertexSet *set, Vertex v)
 {
-  //printf("addVertex %d\n", set->numNodes);
   int size = set->size;
   int capacity = set->capacity;
   if(size >= capacity){
@@ -78,6 +70,7 @@ void addVertex(VertexSet *set, Vertex v)
   //in the case of sparse we're most likely going to be doing the
   //adding manually in edgemap so don't need locks here
   else{
+    #pragma omp critical
     set->verticesSparse[size] = v;
     set->size += 1;
   }
@@ -109,7 +102,6 @@ void removeVertex(VertexSet *set, Vertex v)
 }
 
 void convertToDense(VertexSet *set){
-  //printf("convertDense %d\n", set->numNodes);
   if(set->type == DENSE){
     return;
   }
@@ -127,19 +119,13 @@ void convertToDense(VertexSet *set){
 }
 
 void convertToSparse(VertexSet *set){
-  //printf("convertSparse\n");
   if(set->type == SPARSE){
     return;
   }
   set->type = SPARSE;
   int numNodes = set->numNodes;
-  //printf("%d\n", numNodes);
   int* scanResults = (int*) malloc(sizeof(int) * numNodes);
   set->verticesSparse = (int*) malloc(sizeof(int) * set->size);
-  /*#pragma omp parallel for schedule(static)
-  for(int i = 0; i < set->size; i++){
-    set->verticesSparse[i] = -1;
-  }*/
 
   #pragma omp parallel for schedule(static)
   for(int i = 0; i < numNodes; i++){
@@ -159,7 +145,6 @@ void convertToSparse(VertexSet *set){
 
 //our histoscan
 void scan(int length, int* output){
-  //printf("scan start\n");
   int numBins = omp_get_max_threads();
   int* bins = (int*) malloc(sizeof(int) * numBins);
 
@@ -206,7 +191,6 @@ void scan(int length, int* output){
     }
   }
   free(bins);
-  //printf("scan end\n");
 }
 
 void unionHelper(VertexSet *set, bool* markers){
@@ -260,8 +244,6 @@ VertexSet* vertexUnion(VertexSet *u, VertexSet* v)
     set->verticesDense[i] = markers[i];
   }
   set->size = total;
-  //printf("size %d, %d\n", u->size, v->size);
-  //printf("total %d\n", total);
   free(markers);
   freeVertexSet(u);
   freeVertexSet(v);

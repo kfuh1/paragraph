@@ -20,6 +20,7 @@ class CircleUpdate
     };
     bool update(Vertex src, Vertex dst){
       bool result = false;
+      //couldn't how to get rid of this critical section
       #pragma omp critical
       if(decomp[dst] == NA){
         decomp[dst] = decomp[src];
@@ -27,7 +28,7 @@ class CircleUpdate
         result = true;
       }
       else{
-        if(updated[dst] && decomp[src] < decomp[dst]){
+        if(updated[dst] && (decomp[src] < decomp[dst])){
           decomp[dst] = decomp[src];
           result = true;
         }
@@ -52,7 +53,7 @@ class Visited
 
     bool operator()(Vertex v){
       bool result = false;
-      if(decomp[v] == NA && iter > maxVal - dus[v]){
+      if(decomp[v] == NA && (iter > maxVal - dus[v])){
         decomp[v] = v;
         result = true;
       }
@@ -69,7 +70,7 @@ class Visited
 
 **/
 void decompose(graph *g, int *decomp, int* dus, int maxVal, int maxId) {
-  int numNodes = num_nodes(g);
+  /*int numNodes = num_nodes(g);
   VertexSet* frontier = newVertexSet(SPARSE, 1, numNodes);
   
   #pragma omp parallel for schedule(static)
@@ -110,5 +111,5 @@ void decompose(graph *g, int *decomp, int* dus, int maxVal, int maxId) {
   free(updated);
   if(newFrontier != NULL){
     freeVertexSet(newFrontier);
-  }
+  }*/
 }
